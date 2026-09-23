@@ -1,12 +1,18 @@
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 
 export type TooltipArrowProps = {
+	ref?: Ref<HTMLSpanElement>;
+	id?: string;
 	children?: ReactNode;
 	className?: string;
 };
 
 export function TooltipArrow(props: TooltipArrowProps) {
-	const { children, className } = props;
+	const { ref, id, children, className } = props;
 
-	return <span className={["TooltipArrow", className].filter(Boolean).join(" ")}>{children}</span>;
+	return (
+		<span ref={ref} id={id} className={["TooltipArrow", className].filter(Boolean).join(" ")}>
+			{children}
+		</span>
+	);
 }

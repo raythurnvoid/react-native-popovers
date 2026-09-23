@@ -19,7 +19,7 @@ type AnchorEventProps = {
 
 export type TooltipAnchorProps = {
 	render?: ReactElement<AnchorEventProps> | ((props: AnchorEventProps) => ReactNode);
-	children?: ReactElement<AnchorEventProps>;
+	children?: ReactElement<AnchorEventProps> | ((props: AnchorEventProps) => ReactNode);
 	className?: string;
 	id?: string;
 	ref?: Ref<HTMLElement>;
