@@ -1,0 +1,53 @@
+.Tooltip {
+	box-sizing: border-box;
+	width: max-content;
+	max-width: 240px;
+	padding: 6px 8px;
+
+	border: none;
+	border-radius: 6px;
+
+	background: #1c1c1c;
+	color: #fff;
+	font: 14px/1.4 system-ui, sans-serif;
+}
+
+.TooltipArrow {
+	position: absolute;
+	width: 8px;
+	height: 8px;
+
+	background: #1c1c1c;
+	rotate: 45deg;
+}
+
+.Tooltip[data-side="top"] .TooltipArrow {
+	bottom: -4px;
+	left: calc(50% - 4px);
+}
+
+.Tooltip[data-side="bottom"] .TooltipArrow {
+	top: -4px;
+	left: calc(50% - 4px);
+}
+
+.Tooltip[data-side="left"] .TooltipArrow {
+	right: -4px;
+	top: calc(50% - 4px);
+}
+
+.Tooltip[data-side="right"] .TooltipArrow {
+	left: -4px;
+	top: calc(50% - 4px);
+}
+
+.Tooltip[data-align="start"][data-side="top"] .TooltipArrow,
+.Tooltip[data-align="start"][data-side="bottom"] .TooltipArrow {
+	left: 12px;
+}
+
+.Tooltip[data-align="end"][data-side="top"] .TooltipArrow,
+.Tooltip[data-align="end"][data-side="bottom"] .TooltipArrow {
+	left: auto;
+	right: 12px;
+}
