@@ -1,0 +1,9 @@
+[submodule "references/ariakit"]
+	path = references/ariakit
+	url = https://github.com/ariakit/ariakit.git
+[submodule "references/css-anchor-kit"]
+	path = references/css-anchor-kit
+	url = https://github.com/mk668a/css-anchor-kit.git
+[submodule "references/astryx"]
+	path = references/astryx
+	url = https://github.com/facebook/astryx.git
