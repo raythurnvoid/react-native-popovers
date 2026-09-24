@@ -1,0 +1,20 @@
+/* Story look only. A row with a name and two icon buttons, like a Files sidebar row. */
+.perf-row {
+	display: flex;
+	gap: 2px;
+	align-items: center;
+}
+
+.perf-row-main {
+	flex: 1;
+	min-width: 0;
+	padding: 2px 8px;
+
+	text-align: start;
+}
+
+.perf-row-action {
+	flex: none;
+	width: 24px;
+	padding: 2px 0;
+}

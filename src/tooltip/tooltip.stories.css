@@ -1,0 +1,107 @@
+/* Story look only. The library ships layout rules, not a theme. */
+.story-Tooltip {
+	box-sizing: border-box;
+	max-width: 240px;
+	padding: 6px 8px;
+
+	border: 1px solid #3a3a3a;
+	border-radius: 6px;
+
+	background: #1c1c1c;
+	color: #fff;
+	font:
+		14px/1.4 system-ui,
+		sans-serif;
+
+	opacity: 0;
+	transition: opacity 120ms;
+}
+
+.story-Tooltip[data-enter] {
+	opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.story-Tooltip {
+		transition: none;
+	}
+}
+
+.story-Tooltip-light {
+	border-color: #c33;
+	background: #fff4f4;
+	color: #611;
+}
+
+.story-Tooltip-thick {
+	border-width: 3px;
+	border-color: #3b82f6;
+}
+
+.story-Tooltip-ring {
+	border: 0;
+	box-shadow:
+		0 0 0 2px rgb(59, 130, 246),
+		0 4px 12px rgb(0 0 0 / 0.3);
+}
+
+.story-wide-anchor {
+	width: 320px;
+}
+
+/* Keep the center past the arrow's 12px corner clamp. Firefox draws a one-letter button only about 19px wide. */
+.story-small-anchor {
+	min-width: 32px;
+}
+
+.story-grid {
+	display: grid;
+	grid-template-columns: repeat(3, auto);
+	gap: 112px 176px;
+	padding: 112px;
+}
+
+.story-row {
+	display: flex;
+	gap: 16px;
+	align-items: center;
+}
+
+.story-scroll {
+	width: 260px;
+	height: 160px;
+	overflow: auto;
+
+	border: 1px solid #999;
+}
+
+.story-scroll-item {
+	display: block;
+	margin: 12px;
+}
+
+.story-corner {
+	position: fixed;
+}
+
+.story-hit-area {
+	display: inline-block;
+	width: 120px;
+	height: 32px;
+
+	background: #eee;
+}
+
+.story-rows {
+	height: 400px;
+	width: 320px;
+	overflow: auto;
+}
+
+.story-rows-item {
+	display: block;
+	width: 100%;
+	padding: 2px 8px;
+
+	text-align: start;
+}

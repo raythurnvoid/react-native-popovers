@@ -6,7 +6,7 @@ These folders are git submodules. They are for reading. Do not import them from 
 
 Required. The public tooltip props use Ariakit names so `MyTooltip` can switch later.
 
-Look at `tooltip-store.ts`, `hovercard-store.ts`, `disclosure-store.ts`, `tooltip-provider.tsx`, and `tooltip.tsx` when a prop's meaning is unclear.
+Look at `tooltip-store.ts`, `hovercard-store.ts`, `disclosure-store.ts`, `tooltip-provider.tsx`, and `tooltip.tsx` when a prop's meaning is unclear. `tooltip-anchor.tsx` and `hovercard-anchor.tsx` hold the hover and focus rules. `focusable.tsx` holds `tabIndex`, `focusable`, and `disabled`. The arrow SVG and its color reading come from `popover-arrow.tsx` and `popover-arrow-path.ts` (license headers kept in `src/tooltip/`).
 
 Copy the prop names and the basic timing (`timeout` default 500, `gutter` default 8, hide delay 0). Do not copy the store, `virtualFocus`, `getAnchorRect`, or `updatePosition`.
 

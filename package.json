@@ -1,5 +1,5 @@
 {
-	"name": "native-layer",
+	"name": "native-popovers",
 	"private": true,
 	"version": "0.0.0",
 	"type": "module",
@@ -7,31 +7,43 @@
 		"**/*.css"
 	],
 	"exports": {
-		".": "./src/index.ts"
+		"./tooltip": "./src/tooltip/tooltip.tsx",
+		"./tooltip/placement": "./src/tooltip/placement.ts"
 	},
 	"scripts": {
-		"check": "tsc --noEmit",
+		"lint": "pnpm lint:tsc && pnpm lint:oxlint && pnpm format:check",
+		"lint:tsc": "tsc --noEmit",
+		"lint:oxlint": "oxlint --type-aware src e2e .storybook",
+		"format": "oxfmt --write src e2e .storybook .agents README.md AGENTS.md package.json tsconfig.json .oxfmtrc.json playwright.config.ts vitest.config.ts oxlint.config.ts",
+		"format:check": "oxfmt --check src e2e .storybook .agents README.md AGENTS.md package.json tsconfig.json .oxfmtrc.json playwright.config.ts vitest.config.ts oxlint.config.ts",
 		"test": "vitest run",
 		"storybook": "storybook dev -p 6116",
 		"test:e2e": "playwright test"
 	},
-	"dependencies": {
-		"react": "^19.1.0",
-		"react-dom": "^19.1.0"
+	"peerDependencies": {
+		"react": "^19.0.0"
 	},
 	"devDependencies": {
-		"@playwright/test": "1.62.0",
+		"@ariakit/react": "^0.4.40",
+		"@playwright/test": "^1.63.0",
+		"@rolldown/plugin-babel": "^0.2.4",
 		"@storybook/addon-docs": "^10.6.0",
-		"@storybook/react": "^10.6.0",
 		"@storybook/react-vite": "^10.6.0",
 		"@types/node": "^26.6.2",
-		"@types/react": "^19.1.8",
-		"@types/react-dom": "^19.1.6",
-		"@vitejs/plugin-react": "^6.0.2",
+		"@types/react": "^19.3.0",
+		"@types/react-dom": "^19.3.0",
+		"@vitejs/plugin-react": "^6.1.1",
+		"babel-plugin-react-compiler": "^1.0.0",
+		"eslint-plugin-react-hooks": "^7.1.1",
+		"oxfmt": "^0.70.0",
+		"oxlint": "^1.85.0",
+		"oxlint-tsgolint": "^7.0.2002",
+		"react": "^19.3.0",
+		"react-dom": "^19.3.0",
 		"storybook": "^10.6.0",
-		"typescript": "~5.9.3",
-		"vite": "^8.0.16",
-		"vitest": "^4.0.18"
+		"typescript": "~6.0.3",
+		"vite": "^8.3.0",
+		"vitest": "^5.0.1"
 	},
 	"packageManager": "pnpm@10.33.0"
 }

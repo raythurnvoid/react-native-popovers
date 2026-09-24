@@ -17,8 +17,15 @@ describe("tooltip_position_area", () => {
 
 describe("tooltip_position_try_fallbacks", () => {
 	test("centered placements add span slides after the flips", () => {
-		expect(tooltip_position_try_fallbacks("bottom")).toContain("flip-block, flip-inline");
-		expect(tooltip_position_try_fallbacks("bottom")).toContain("bottom span-left");
+		expect(tooltip_position_try_fallbacks("bottom")).toBe(
+			"flip-block, flip-inline, flip-block flip-inline, self-block-end span-self-inline-start, self-block-end span-self-inline-end, self-block-start span-self-inline-start, self-block-start span-self-inline-end",
+		);
+	});
+
+	test("inline sides slide along the block axis with logical keywords", () => {
+		expect(tooltip_position_try_fallbacks("left")).toBe(
+			"flip-block, flip-inline, flip-block flip-inline, self-inline-start span-self-block-start, self-inline-start span-self-block-end, self-inline-end span-self-block-start, self-inline-end span-self-block-end",
+		);
 	});
 
 	test("start alignment only flips", () => {

@@ -46,6 +46,8 @@ export function tooltip_position_area(placement: tooltip_Placement): string {
  *
  * A centered tooltip stays centered when you only flip, so overflow on the
  * other axis still clips it. Centered placements add span slides after the flips.
+ * The slides use the same logical self-* keywords as the placement, so RTL keeps working.
+ * tooltip.css matches these exact values in its anchored container queries, so keep both in sync.
  */
 export function tooltip_position_try_fallbacks(placement: tooltip_Placement): string {
 	const { side, align } = split_placement(placement);
@@ -53,14 +55,14 @@ export function tooltip_position_try_fallbacks(placement: tooltip_Placement): st
 	if (align !== "center") return flips;
 
 	if (side === "top" || side === "bottom") {
-		const same = side === "top" ? "top" : "bottom";
-		const opposite = side === "top" ? "bottom" : "top";
-		return `${flips}, ${same} span-left, ${same} span-right, ${opposite} span-left, ${opposite} span-right`;
+		const same = side === "top" ? "self-block-start" : "self-block-end";
+		const opposite = side === "top" ? "self-block-end" : "self-block-start";
+		return `${flips}, ${same} span-self-inline-start, ${same} span-self-inline-end, ${opposite} span-self-inline-start, ${opposite} span-self-inline-end`;
 	}
 
-	const same = side === "left" ? "left" : "right";
-	const opposite = side === "left" ? "right" : "left";
-	return `${flips}, ${same} span-top, ${same} span-bottom, ${opposite} span-top, ${opposite} span-bottom`;
+	const same = side === "left" ? "self-inline-start" : "self-inline-end";
+	const opposite = side === "left" ? "self-inline-end" : "self-inline-start";
+	return `${flips}, ${same} span-self-block-start, ${same} span-self-block-end, ${opposite} span-self-block-start, ${opposite} span-self-block-end`;
 }
 
 export function tooltip_side(placement: tooltip_Placement): Side {

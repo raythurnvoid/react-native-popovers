@@ -7,9 +7,13 @@ export default defineConfig({
 	retries: 0,
 	use: {
 		baseURL: "http://127.0.0.1:6116",
-		browserName: "chromium",
 		trace: "on-first-retry",
 	},
+	projects: [
+		{ name: "chromium", use: { browserName: "chromium" } },
+		{ name: "webkit", use: { browserName: "webkit" } },
+		{ name: "firefox", use: { browserName: "firefox" } },
+	],
 	webServer: {
 		command: "pnpm exec storybook dev -p 6116 --ci",
 		url: "http://127.0.0.1:6116",

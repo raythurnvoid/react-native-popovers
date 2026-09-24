@@ -1,0 +1,251 @@
+/* All rules sit in one layer and use :where(), so any app rule wins over them. An app that uses
+   layers must list native_popovers first in its @layer order statement. */
+@layer native_popovers {
+	/* #region tooltip */
+	:where(.np-TooltipPositioner) {
+		--np-TooltipPositioner-gap: calc(
+			var(--np-TooltipPositioner-gutter, 8px) + var(--np-TooltipPositioner-arrow-size, 0px) / 2
+		);
+
+		/* Use the natural width, like Ariakit's popover wrapper. With auto width, a start or end
+		   placement near an edge wraps its text into the small space left, instead of flipping. */
+		width: max-content;
+
+		position: fixed;
+		inset: auto;
+		position-anchor: var(--np-TooltipPositioner-anchor);
+		/* The arrow uses this name to stay inside the tooltip box. */
+		anchor-name: var(--np-TooltipPositioner-box);
+		position-area: var(--np-TooltipPositioner-position-area);
+		position-try-fallbacks: var(--np-TooltipPositioner-position-try-fallbacks);
+		/* Hide the tooltip while its anchor is scrolled out of view. */
+		position-visibility: anchors-visible;
+		/* Let the arrow ask which fallback the browser picked, with @container anchored(fallback: ...). */
+		container-type: anchored;
+
+		/* Clear the popover UA box. The UA overflow: auto would clip the arrow. */
+		margin: 0;
+		padding: 0;
+		border: 0;
+		overflow: visible;
+
+		background: transparent;
+		color: inherit;
+
+		/* Only the content and the gap strips take the pointer. */
+		pointer-events: none;
+	}
+
+	/* The gap goes on both edges of the axis that can flip. With one edge, a flip puts it on the far side. */
+	:where(.np-TooltipPositioner[data-side="top"], .np-TooltipPositioner[data-side="bottom"]) {
+		margin-block: var(--np-TooltipPositioner-gap);
+	}
+
+	:where(.np-TooltipPositioner[data-side="left"], .np-TooltipPositioner[data-side="right"]) {
+		margin-inline: var(--np-TooltipPositioner-gap);
+	}
+
+	/* Two strips fill the gaps, so a pointer that crosses from the anchor to the tooltip stays over
+	   the tooltip. This does the job of Ariakit's safe triangle for a small gap. */
+	:where(.np-TooltipPositioner)::before,
+	:where(.np-TooltipPositioner)::after {
+		content: "";
+
+		position: absolute;
+
+		pointer-events: auto;
+	}
+
+	:where(.np-TooltipPositioner[data-side="top"], .np-TooltipPositioner[data-side="bottom"])::before,
+	:where(.np-TooltipPositioner[data-side="top"], .np-TooltipPositioner[data-side="bottom"])::after {
+		inset-inline: 0;
+		block-size: var(--np-TooltipPositioner-gap);
+	}
+
+	:where(.np-TooltipPositioner[data-side="top"], .np-TooltipPositioner[data-side="bottom"])::before {
+		inset-block-end: 100%;
+	}
+
+	:where(.np-TooltipPositioner[data-side="top"], .np-TooltipPositioner[data-side="bottom"])::after {
+		inset-block-start: 100%;
+	}
+
+	:where(.np-TooltipPositioner[data-side="left"], .np-TooltipPositioner[data-side="right"])::before,
+	:where(.np-TooltipPositioner[data-side="left"], .np-TooltipPositioner[data-side="right"])::after {
+		inset-block: 0;
+		inline-size: var(--np-TooltipPositioner-gap);
+	}
+
+	:where(.np-TooltipPositioner[data-side="left"], .np-TooltipPositioner[data-side="right"])::before {
+		inset-inline-end: 100%;
+	}
+
+	:where(.np-TooltipPositioner[data-side="left"], .np-TooltipPositioner[data-side="right"])::after {
+		inset-inline-start: 100%;
+	}
+
+	:where(.np-Tooltip) {
+		position: relative;
+
+		pointer-events: auto;
+	}
+
+	/* The content takes focus only from a click on its text. Do not draw a ring for it. */
+	:where(.np-Tooltip:focus) {
+		outline: none;
+	}
+	/* #endregion tooltip */
+
+	/* #region arrow */
+	/* The arrow is position: fixed, so its containing block is the viewport. That lets anchor() reach
+	   the trigger and the positioner box. An absolute element inside the popover cannot query the trigger.
+	   It points at the trigger's center and stays inside the box, padding away from the corners.
+	   A transform, filter, or paint containment on the content makes the content the containing
+	   block. Then every anchor() below uses its fallback, and the arrow sits centered on its side. */
+	:where(.np-TooltipArrow) {
+		--np-TooltipArrow-padding: 4px;
+		--np-TooltipArrow-x: clamp(
+			calc(anchor(var(--np-TooltipPositioner-box) left, 0px) + var(--np-TooltipArrow-padding)),
+			calc(anchor(center, 50%) - var(--np-TooltipArrow-size) / 2),
+			calc(
+				anchor(var(--np-TooltipPositioner-box) right, 100%) - var(--np-TooltipArrow-padding) -
+					var(--np-TooltipArrow-size)
+			)
+		);
+		--np-TooltipArrow-y: clamp(
+			calc(anchor(var(--np-TooltipPositioner-box) top, 0px) + var(--np-TooltipArrow-padding)),
+			calc(anchor(center, 50%) - var(--np-TooltipArrow-size) / 2),
+			calc(
+				anchor(var(--np-TooltipPositioner-box) bottom, 100%) - var(--np-TooltipArrow-padding) -
+					var(--np-TooltipArrow-size)
+			)
+		);
+
+		position: fixed;
+		position-anchor: var(--np-TooltipPositioner-anchor);
+		position-visibility: anchors-visible;
+		inset: auto;
+		width: var(--np-TooltipArrow-size);
+		height: var(--np-TooltipArrow-size);
+		margin: 0;
+
+		pointer-events: none;
+
+		fill: var(--np-TooltipArrow-fill, none);
+		stroke: var(--np-TooltipArrow-stroke, none);
+		stroke-width: var(--np-TooltipArrow-stroke-width, 0);
+	}
+
+	:where(.np-TooltipArrow) > svg {
+		width: 100%;
+		height: 100%;
+
+		rotate: var(--np-TooltipArrow-rotate, 0deg);
+	}
+
+	/* A ring (box-shadow) has no gap under it, so skip the path that paints the background under a border. */
+	:where(.np-TooltipArrow[data-ring]) :where(.np-TooltipArrow-underlay) {
+		display: none;
+	}
+
+	/* The rules below put the arrow on the box edge that faces the trigger. The base overlaps the border
+	   (--np-TooltipArrow-border), like an HTML border. Top and bottom are physical here, because anchor()
+	   works in viewport space. left and right placements follow the inline direction, like the placement
+	   map, so RTL swaps them. */
+	:where(.np-TooltipPositioner[data-side="top"]) :where(.np-TooltipArrow) {
+		--np-TooltipArrow-rotate: 180deg;
+		top: calc(
+			anchor(var(--np-TooltipPositioner-box) bottom, calc(100% + var(--np-TooltipArrow-border))) -
+				var(--np-TooltipArrow-border)
+		);
+		left: var(--np-TooltipArrow-x);
+	}
+
+	:where(.np-TooltipPositioner[data-side="bottom"]) :where(.np-TooltipArrow) {
+		--np-TooltipArrow-rotate: 0deg;
+		top: calc(
+			anchor(var(--np-TooltipPositioner-box) top, calc(-1 * var(--np-TooltipArrow-border))) -
+				var(--np-TooltipArrow-size) + var(--np-TooltipArrow-border)
+		);
+		left: var(--np-TooltipArrow-x);
+	}
+
+	:where(.np-TooltipPositioner[data-side="left"]:dir(ltr), .np-TooltipPositioner[data-side="right"]:dir(rtl))
+		:where(.np-TooltipArrow) {
+		--np-TooltipArrow-rotate: 90deg;
+		top: var(--np-TooltipArrow-y);
+		left: calc(
+			anchor(var(--np-TooltipPositioner-box) right, calc(100% + var(--np-TooltipArrow-border))) -
+				var(--np-TooltipArrow-border)
+		);
+	}
+
+	:where(.np-TooltipPositioner[data-side="right"]:dir(ltr), .np-TooltipPositioner[data-side="left"]:dir(rtl))
+		:where(.np-TooltipArrow) {
+		--np-TooltipArrow-rotate: -90deg;
+		top: var(--np-TooltipArrow-y);
+		left: calc(
+			anchor(var(--np-TooltipPositioner-box) left, calc(-1 * var(--np-TooltipArrow-border))) -
+				var(--np-TooltipArrow-size) + var(--np-TooltipArrow-border)
+		);
+	}
+
+	/* When the browser flips the tooltip to the other side of the trigger, move the arrow with it.
+	   These are the fallbacks from tooltip_position_try_fallbacks that land on the opposite side. */
+	@container anchored(fallback: flip-block) or anchored(fallback: flip-block flip-inline) or anchored(fallback: self-block-end span-self-inline-start) or anchored(fallback: self-block-end span-self-inline-end) {
+		:where(.np-TooltipPositioner[data-side="top"]) :where(.np-TooltipArrow) {
+			--np-TooltipArrow-rotate: 0deg;
+			top: calc(
+				anchor(var(--np-TooltipPositioner-box) top, calc(-1 * var(--np-TooltipArrow-border))) -
+					var(--np-TooltipArrow-size) + var(--np-TooltipArrow-border)
+			);
+		}
+	}
+
+	@container anchored(fallback: flip-block) or anchored(fallback: flip-block flip-inline) or anchored(fallback: self-block-start span-self-inline-start) or anchored(fallback: self-block-start span-self-inline-end) {
+		:where(.np-TooltipPositioner[data-side="bottom"]) :where(.np-TooltipArrow) {
+			--np-TooltipArrow-rotate: 180deg;
+			top: calc(
+				anchor(var(--np-TooltipPositioner-box) bottom, calc(100% + var(--np-TooltipArrow-border))) -
+					var(--np-TooltipArrow-border)
+			);
+		}
+	}
+
+	@container anchored(fallback: flip-inline) or anchored(fallback: flip-block flip-inline) or anchored(fallback: self-inline-end span-self-block-start) or anchored(fallback: self-inline-end span-self-block-end) {
+		:where(.np-TooltipPositioner[data-side="left"]:dir(ltr)) :where(.np-TooltipArrow) {
+			--np-TooltipArrow-rotate: -90deg;
+			left: calc(
+				anchor(var(--np-TooltipPositioner-box) left, calc(-1 * var(--np-TooltipArrow-border))) -
+					var(--np-TooltipArrow-size) + var(--np-TooltipArrow-border)
+			);
+		}
+
+		:where(.np-TooltipPositioner[data-side="left"]:dir(rtl)) :where(.np-TooltipArrow) {
+			--np-TooltipArrow-rotate: 90deg;
+			left: calc(
+				anchor(var(--np-TooltipPositioner-box) right, calc(100% + var(--np-TooltipArrow-border))) -
+					var(--np-TooltipArrow-border)
+			);
+		}
+	}
+
+	@container anchored(fallback: flip-inline) or anchored(fallback: flip-block flip-inline) or anchored(fallback: self-inline-start span-self-block-start) or anchored(fallback: self-inline-start span-self-block-end) {
+		:where(.np-TooltipPositioner[data-side="right"]:dir(ltr)) :where(.np-TooltipArrow) {
+			--np-TooltipArrow-rotate: 90deg;
+			left: calc(
+				anchor(var(--np-TooltipPositioner-box) right, calc(100% + var(--np-TooltipArrow-border))) -
+					var(--np-TooltipArrow-border)
+			);
+		}
+
+		:where(.np-TooltipPositioner[data-side="right"]:dir(rtl)) :where(.np-TooltipArrow) {
+			--np-TooltipArrow-rotate: -90deg;
+			left: calc(
+				anchor(var(--np-TooltipPositioner-box) left, calc(-1 * var(--np-TooltipArrow-border))) -
+					var(--np-TooltipArrow-size) + var(--np-TooltipArrow-border)
+			);
+		}
+	}
+	/* #endregion arrow */
+}
