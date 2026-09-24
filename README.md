@@ -81,7 +81,7 @@ All four components live in `src/tooltip/tooltip.tsx`, one region each, with the
 
 ## Public API
 
-The names match the Ariakit pieces that `MyTooltip` already renders:
+The names match the Ariakit pieces that `MyTooltip` rendered before it moved here:
 
 - `TooltipProvider` — `placement`, `timeout`, `skipTimeout`, `open`, `setOpen`, `children`
 - `TooltipAnchor` — `render` (an element or a function), `children`, `focusable`, `disabled`, `showOnHover`, and any HTML props such as `tabIndex`, `className`, or handlers
@@ -274,23 +274,22 @@ The format scripts list the project paths on purpose. The Ariakit checkout under
 
 Storybook compiles the code with the React Compiler (`.storybook/main.ts`), like the t3-chat app. So the e2e tests run the same compiled code the app will run.
 
-## Later, in t3-chat
+## In t3-chat
 
-This repo is a t3-chat submodule at `packages/native-popovers`. It is not published to npm: the app uses it as a pnpm workspace package, and CI must clone the submodule before `pnpm install --frozen-lockfile`. The migration plan wires both.
+This repo is a t3-chat submodule at `packages/native-popovers`. It is not published to npm: the app uses it as a pnpm workspace package, and CI clones the submodule before `pnpm install --frozen-lockfile`.
 
-When that is ready, `MyTooltip` can render `TooltipProvider`, `TooltipAnchor`, `Tooltip`, and `TooltipArrow` from this package. The `My*` components and the call sites stay. Menus are a later pass. A context menu should use a real 1px element at the pointer, not `getAnchorRect`.
+`MyTooltip` renders `TooltipProvider`, `TooltipAnchor`, `Tooltip`, and `TooltipArrow` from this package. The `My*` components and their call sites kept their JSX. Keep this app setup (`packages/app/src/components/my-tooltip.css`, `app.css`, and `vite.config.ts`):
 
-`MyPopover` still uses Ariakit. Before it moves to `Popover`, check the differences listed under "Popover": the two rich text popovers sit inside the Tiptap bubble menu, which hides itself, and two call sites read `--popover-available-width` in their CSS.
-
-Changes the app needs in that pass (`packages/app/src/components/my-tooltip.css` and `app.css`):
-
-- Remove `contain: content` from `.MyTooltipContent`. It turns off `anchor()` for the arrow (see the limit under Styling).
-- Replace `pointer-events: none` on `.MyTooltipContent` with `interactive={false}` on `Tooltip`. The CSS alone leaves the gap strips catching the pointer.
-- Drop the `.MyTooltipArrow` square rotated with `transform`, and let `TooltipArrow` draw the arrow. Style its colors through the content background and border.
-- Add `native_popovers` to the app's `@layer` order in `app.css`, after `base` (Tailwind preflight) and before `common_components`. The app's CSS layer order plugin reads that list, and an unlisted layer lands last and beats the app layers.
-- Add `packages/native-popovers/src` to the React Compiler `sources` in `packages/app/vite.config.ts`, so the app compiles it the same way Storybook does here.
+- No `contain`, `transform`, or `filter` on `.MyTooltipContent`. They turn off `anchor()` for the arrow (see the limit under Styling).
+- `MyTooltipContent` passes `interactive={false}` by default, instead of `pointer-events: none` in CSS. The CSS alone leaves the gap strips catching the pointer.
+- `TooltipArrow` draws the arrow. Its colors come from the content background and border.
+- `.MyTooltipContent` resets font, weight, and `white-space`. The tooltip keeps its DOM parent, so it inherits text styles from there (Monaco, bold badges).
+- `native_popovers` is in the app's `@layer` order in `app.css`, after `base` (Tailwind preflight) and before `common_components`. The app's CSS layer order plugin reads that list, and an unlisted layer lands last and beats the app layers.
+- `packages/native-popovers/src` is in the React Compiler `sources` in `packages/app/vite.config.ts`, so the app compiles it the same way Storybook does here.
 - The package has `react` as a peer dependency, so the app's React is used.
 - Keep `build.cssMinify: false` (or `"esbuild"`) in `packages/app/vite.config.ts`. lightningcss 1.33, Vite's default CSS minifier, cannot parse `@container anchored(...)` and fails the build ([lightningcss#1176](https://github.com/parcel-bundler/lightningcss/issues/1176)). Do not switch the app to `css.transformer: "lightningcss"` until that is fixed. The Storybook config here uses `"esbuild"` for the same reason.
+
+`MyPopover` still uses Ariakit. Before it moves to `Popover`, check the differences listed under "Popover": the two rich text popovers sit inside the Tiptap bubble menu, which hides itself, and two call sites read `--popover-available-width` in their CSS. Menus are a later pass. A context menu should use a real 1px element at the pointer, not `getAnchorRect`.
 
 ## Reference submodules
 

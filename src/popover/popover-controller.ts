@@ -244,8 +244,8 @@ export function createPopover(initial: PopoverOptions) {
 			writeAnchorAria();
 		},
 		destroy() {
-			// Also update the trigger's aria and the `Popover` snapshot. A remount after Fast Refresh must start closed, or the
-			// next trigger click would ask to close a popover that is already closed.
+			// Also update the disclosure's aria attributes and the `Popover` snapshot. A remount after Fast
+			// Refresh must start closed, or the next trigger click would ask to close a popover that is already closed.
 			open = false;
 			sync();
 			writeAnchorAria();
