@@ -1,5 +1,5 @@
 /* All rules sit in one layer and use :where(), so any app rule wins over them. An app that uses
-   layers must list native_popovers first in its @layer order statement. */
+   layers must list native_popovers after its reset layers and before its component layers. */
 @layer native_popovers {
 	/* #region tooltip */
 	:where(.np-TooltipPositioner) {
@@ -199,7 +199,7 @@
 	}
 
 	/* When the browser flips the tooltip to the other side of the trigger, move the arrow with it.
-	   These are the fallbacks from tooltip_position_try_fallbacks that land on the opposite side. */
+	   These are the fallbacks from placement_position_try_fallbacks that land on the opposite side. */
 	@container anchored(fallback: flip-block) or anchored(fallback: flip-block flip-inline) or anchored(fallback: self-block-end span-self-inline-start) or anchored(fallback: self-block-end span-self-inline-end) {
 		:where(.np-TooltipPositioner[data-side="top"]) :where(.np-TooltipArrow) {
 			--np-TooltipArrow-rotate: 0deg;

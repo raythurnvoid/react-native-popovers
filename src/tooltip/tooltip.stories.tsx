@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { StrictMode, useEffect, useRef, useState, type ReactNode } from "react";
 import { Tooltip, TooltipAnchor, TooltipArrow, TooltipProvider, type TooltipProviderProps } from "./tooltip.tsx";
-import { tooltip_PLACEMENTS } from "./placement.ts";
+import { PLACEMENTS } from "../layer/placement.ts";
 import "./tooltip.stories.css";
 
 const meta = {
@@ -255,6 +255,7 @@ export const CustomId: Story = {
 export const Disabled: Story = {
 	render: () => (
 		<div className="story-row">
+			<button type="button">Before</button>
 			<TooltipProvider>
 				<TooltipAnchor disabled render={<button type="button">Delete</button>} />
 				<Tooltip className="story-Tooltip">You cannot delete this</Tooltip>
@@ -262,6 +263,14 @@ export const Disabled: Story = {
 			<TooltipProvider>
 				<TooltipAnchor disabled render={<span>Archived</span>} />
 				<Tooltip className="story-Tooltip">Archived items are read-only</Tooltip>
+			</TooltipProvider>
+			<TooltipProvider>
+				<TooltipAnchor disabled tabIndex={0} render={<span>Due</span>} />
+				<Tooltip className="story-Tooltip">Paid plans have no amount due</Tooltip>
+			</TooltipProvider>
+			<TooltipProvider>
+				<TooltipAnchor disabled render={<a href="#docs">Docs</a>} />
+				<Tooltip className="story-Tooltip">Docs are offline</Tooltip>
 			</TooltipProvider>
 			<button type="button">After</button>
 		</div>
@@ -419,7 +428,7 @@ export const Placements: Story = {
 					<input type="checkbox" checked={all} onChange={(event) => setAll(event.currentTarget.checked)} /> Show all
 				</label>
 				<div className="story-grid">
-					{tooltip_PLACEMENTS.map((placement) => (
+					{PLACEMENTS.map((placement) => (
 						<Tip key={placement} label={placement} tip={placement} placement={placement} open={all || undefined} />
 					))}
 				</div>

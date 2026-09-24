@@ -1,0 +1,49 @@
+/* All rules sit in one layer and use :where(), so any app rule wins over them. An app that uses
+   layers must list native_popovers after its reset layers and before its component layers. */
+@layer native_popovers {
+	/* #region popover */
+	:where(.np-PopoverPositioner) {
+		/* Use the natural width, like Ariakit's popover wrapper. With auto width, a start or end
+		   placement near an edge wraps its content into the small space left, instead of flipping. */
+		width: max-content;
+
+		position: fixed;
+		inset: auto;
+		position-anchor: var(--np-PopoverPositioner-anchor);
+		position-area: var(--np-PopoverPositioner-position-area);
+		position-try-fallbacks: var(--np-PopoverPositioner-position-try-fallbacks);
+		/* No position-visibility here, unlike the tooltip. The popover can hold focus, and hiding it
+		   while its disclosure scrolls out of view would hide the focused element. Ariakit keeps it visible too. */
+
+		/* Clear the popover UA box. */
+		margin: 0;
+		padding: 0;
+		border: 0;
+		overflow: visible;
+
+		background: transparent;
+		color: inherit;
+
+		/* Only the content takes the pointer, not the gap. */
+		pointer-events: none;
+	}
+
+	/* The gap goes on both edges of the axis that can flip. With one edge, a flip puts it on the far side. */
+	:where(.np-PopoverPositioner[data-side="top"], .np-PopoverPositioner[data-side="bottom"]) {
+		margin-block: var(--np-PopoverPositioner-gutter, 0px);
+	}
+
+	:where(.np-PopoverPositioner[data-side="left"], .np-PopoverPositioner[data-side="right"]) {
+		margin-inline: var(--np-PopoverPositioner-gutter, 0px);
+	}
+
+	:where(.np-Popover) {
+		pointer-events: auto;
+	}
+
+	/* The content itself takes focus only when it has nothing focusable inside. Do not draw a ring for it. */
+	:where(.np-Popover:focus) {
+		outline: none;
+	}
+	/* #endregion popover */
+}

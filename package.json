@@ -8,7 +8,8 @@
 	],
 	"exports": {
 		"./tooltip": "./src/tooltip/tooltip.tsx",
-		"./tooltip/placement": "./src/tooltip/placement.ts"
+		"./popover": "./src/popover/popover.tsx",
+		"./placement": "./src/layer/placement.ts"
 	},
 	"scripts": {
 		"lint": "pnpm lint:tsc && pnpm lint:oxlint && pnpm format:check",

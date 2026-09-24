@@ -1,8 +1,9 @@
 type Layer = {
 	/**
-	 * Handle an Escape press. Return true when this layer used it.
+	 * Handle an Escape press. Return true when this layer used it. Return false to pass the press on
+	 * to the focused element.
 	 */
-	escape: () => boolean;
+	escape: (event: KeyboardEvent) => boolean;
 };
 
 const stacks = new WeakMap<Window, Layer[]>();
@@ -28,7 +29,7 @@ export function layer_stack_add(win: Window, layer: Layer) {
 			(event) => {
 				if (event.key !== "Escape" || event.isComposing || event.defaultPrevented) return;
 				const top = layers.at(-1);
-				if (top?.escape()) event.preventDefault();
+				if (top?.escape(event)) event.preventDefault();
 			},
 			true,
 		);

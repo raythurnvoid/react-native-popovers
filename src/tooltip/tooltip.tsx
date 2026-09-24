@@ -1,6 +1,5 @@
 import {
 	createContext,
-	createElement,
 	isValidElement,
 	memo,
 	use,
@@ -15,20 +14,26 @@ import {
 	type HTMLAttributes,
 	type KeyboardEvent,
 	type PointerEvent,
-	type ReactElement,
 	type ReactNode,
 	type Ref,
-	type RefCallback,
 	type SyntheticEvent,
 } from "react";
-import { cx, useFn, useForwardRefs } from "../react-utils.ts";
 import {
-	tooltip_align,
-	tooltip_position_area,
-	tooltip_position_try_fallbacks,
-	tooltip_side,
-	type tooltip_Placement,
-} from "./placement.ts";
+	cx,
+	merge_render_props,
+	render_element,
+	useFocusableTabIndex,
+	useFn,
+	useForwardRefs,
+	type RenderProp,
+} from "../react-utils.ts";
+import {
+	placement_align,
+	placement_position_area,
+	placement_position_try_fallbacks,
+	placement_side,
+	type Placement,
+} from "../layer/placement.ts";
 import { createTooltip, type TooltipController } from "./tooltip-controller.ts";
 import "./tooltip.css";
 
@@ -50,13 +55,18 @@ export type TooltipProviderProps = {
 	 * Preferred side and alignment, with Ariakit names. The browser flips it when it does not fit.
 	 * @default "top"
 	 */
-	placement?: tooltip_Placement;
+	placement?: Placement;
 	/**
-	 * Hover show delay in milliseconds. Hide is immediate. After a close, the next tooltip in the
-	 * same document skips the delay for this long.
+	 * Hover show delay in milliseconds. Hide is immediate.
 	 * @default 500
 	 */
 	timeout?: number;
+	/**
+	 * After this tooltip closes, every tooltip in the same document skips its show delay for this
+	 * many milliseconds, like Ariakit.
+	 * @default 300
+	 */
+	skipTimeout?: number;
 	/**
 	 * Controlled open state. `true` forces it open, `false` forces it closed. Omit it for uncontrolled.
 	 */
@@ -82,8 +92,8 @@ export type TooltipProviderProps = {
  * ```
  */
 export const TooltipProvider = memo(function TooltipProvider(props: TooltipProviderProps) {
-	const { children, placement = "top", timeout = 500, open, setOpen } = props;
-	const options = { placement, timeout, open, setOpen };
+	const { children, placement = "top", timeout = 500, skipTimeout = 300, open, setOpen } = props;
+	const options = { placement, timeout, skipTimeout, open, setOpen };
 	const [tooltip] = useState(() => createTooltip(options));
 
 	useLayoutEffect(() => {
@@ -97,22 +107,21 @@ export const TooltipProvider = memo(function TooltipProvider(props: TooltipProvi
 // #endregion provider
 
 // #region anchor
-type TooltipAnchorRenderProps = HTMLAttributes<HTMLElement> & { ref: RefCallback<HTMLElement> };
-
 export type TooltipAnchorProps = HTMLAttributes<HTMLElement> & {
 	ref?: Ref<HTMLElement>;
 	/**
 	 * The element to render. An element gets the anchor props merged in. A function gets them as its argument.
 	 * Without it, the anchor is a `div` around `children`.
 	 */
-	render?: ReactElement | ((props: TooltipAnchorRenderProps) => ReactNode);
+	render?: RenderProp;
 	/**
 	 * Show the tooltip on keyboard focus, and add `tabIndex={0}` to an element that cannot take focus.
 	 * @default true
 	 */
 	focusable?: boolean;
 	/**
-	 * Never show the tooltip from this anchor, and mark it with `aria-disabled`.
+	 * Never show the tooltip from this anchor, mark it with `aria-disabled`, and take it out of the
+	 * tab order, even when it has a `tabIndex` prop.
 	 * @default false
 	 */
 	disabled?: boolean;
@@ -123,8 +132,6 @@ export type TooltipAnchorProps = HTMLAttributes<HTMLElement> & {
 	 */
 	showOnHover?: boolean | ((event: PointerEvent<HTMLElement>) => boolean);
 };
-
-type EventHandler = (event: SyntheticEvent<HTMLElement>) => void;
 
 const ANCHOR_EVENT_NAMES = new Set([
 	"onPointerEnter",
@@ -142,40 +149,6 @@ const DISABLEABLE_TAGS = new Set(["button", "fieldset", "input", "optgroup", "op
 
 const MODIFIER_KEYS = new Set(["Alt", "AltGraph", "Control", "Meta", "Shift"]);
 
-function is_natively_tabbable(element: HTMLElement) {
-	switch (element.tagName) {
-		case "BUTTON":
-		case "IFRAME":
-		case "SELECT":
-		case "SUMMARY":
-		case "TEXTAREA":
-			return true;
-		case "INPUT":
-			return (element as HTMLInputElement).type !== "hidden";
-		case "A":
-		case "AREA":
-			return element.hasAttribute("href");
-		case "AUDIO":
-		case "VIDEO":
-			return element.hasAttribute("controls");
-	}
-	return element.isContentEditable;
-}
-
-const BUTTON_INPUT_TYPES = new Set(["button", "checkbox", "color", "file", "image", "radio", "reset", "submit"]);
-
-/**
- * Safari does not focus a button, checkbox, or radio on click unless it has an explicit tabIndex.
- * Ariakit's Focusable adds one, so a key after a click can open the tooltip. Ariakit also checks for a
- * Mac platform. Real Safari always runs on Apple platforms, and the vendor check alone also covers
- * Playwright's WebKit on Windows.
- */
-function needs_safari_tab_index(element: HTMLElement) {
-	if (!/apple/i.test(element.ownerDocument.defaultView?.navigator.vendor ?? "")) return false;
-	if (element.tagName === "BUTTON") return true;
-	return element.tagName === "INPUT" && BUTTON_INPUT_TYPES.has((element as HTMLInputElement).type);
-}
-
 /**
  * The element that shows the tooltip on hover and on keyboard focus.
  * Hover and focus do not render it again. Like Ariakit, it does not add the tooltip to its `aria-describedby`.
@@ -184,16 +157,16 @@ export const TooltipAnchor = memo(function TooltipAnchor(props: TooltipAnchorPro
 	const { ref, render, focusable = true, disabled = false, showOnHover = true, children, ...rest } = props;
 	const tooltip = useTooltipContext("TooltipAnchor");
 	const renderElement = isValidElement<Record<string, unknown>>(render) ? render : null;
-	const elementProps = renderElement?.props ?? {};
 	// Whether the current focus came from the keyboard. Reset on blur.
 	const keyboardFocus = useRef(false);
 	const element = useRef<HTMLElement | null>(null);
-	// Whether this component added the tabindex attribute, so it may remove it again.
-	const addedTabIndex = useRef(false);
 
 	// One stable handler for every tooltip event. It reads refs, so it must be a useFn: the React
 	// Compiler cannot tell that the merged props below are only called as event handlers.
 	const handleInternal = useFn((name: AnchorEventName, event: SyntheticEvent<HTMLElement>) => {
+		// An earlier handler that called preventDefault takes the event. Escape is the exception: the layer
+		// stack marks a used Escape before React sees it, and the key handler must still record it.
+		if (event.defaultPrevented && (event as KeyboardEvent<HTMLElement>).key !== "Escape") return;
 		switch (name) {
 			case "onPointerEnter":
 				// Touch never opens a tooltip. Chrome's mouse events after a tap are not pointer events.
@@ -244,37 +217,20 @@ export const TooltipAnchor = memo(function TooltipAnchor(props: TooltipAnchorPro
 		}
 	});
 
-	// Merge like Ariakit: the render element's values win, class names and styles join, and every
-	// handler runs. The internal handler runs last and skips when an earlier one called preventDefault.
-	const merged: Record<string, unknown> = { ...rest, children };
-	for (const [key, value] of Object.entries(elementProps)) {
-		if (value === undefined || key === "ref") continue;
-		merged[key] = value;
-	}
-	merged.className = cx(rest.className, elementProps.className as string | undefined);
-	merged.style = rest.style || elementProps.style ? { ...rest.style, ...(elementProps.style as object) } : undefined;
-	for (const key of new Set([...Object.keys(rest), ...Object.keys(elementProps), ...ANCHOR_EVENT_NAMES])) {
-		if (!/^on[A-Z]/.test(key)) continue;
-		const elementHandler = elementProps[key] as EventHandler | undefined;
-		const propHandler = (rest as Record<string, unknown>)[key] as EventHandler | undefined;
-		const internal = ANCHOR_EVENT_NAMES.has(key as AnchorEventName);
-		merged[key] = (event: SyntheticEvent<HTMLElement>) => {
-			if (typeof elementHandler === "function") elementHandler(event);
-			if (typeof propHandler === "function") propHandler(event);
-			// The layer stack marks a used Escape before React sees it. The key handler must still record it.
-			if (internal && (!event.defaultPrevented || (event as KeyboardEvent<HTMLElement>).key === "Escape")) {
-				handleInternal(key as AnchorEventName, event);
-			}
-		};
-	}
+	const merged = merge_render_props({ ...rest, children }, render, ANCHOR_EVENT_NAMES, (name, event) =>
+		handleInternal(name as AnchorEventName, event),
+	);
 	if (disabled) {
 		merged["aria-disabled"] = true;
-		if (typeof renderElement?.type === "string" && DISABLEABLE_TAGS.has(renderElement.type)) merged.disabled = true;
+		// Take a disabled anchor out of the tab order, even when it has a tabIndex prop, like Ariakit.
+		// A tag that supports `disabled` gets it. A link cannot be disabled, so it gets -1.
+		const tag = typeof renderElement?.type === "string" ? renderElement.type : null;
+		if (tag && DISABLEABLE_TAGS.has(tag)) merged.disabled = true;
+		merged.tabIndex = tag === "a" ? -1 : undefined;
 	}
 
 	const setRef = useFn((node: HTMLElement) => {
 		element.current = node;
-		addedTabIndex.current = false;
 		tooltip.registerAnchor(node, null);
 
 		return () => {
@@ -282,29 +238,12 @@ export const TooltipAnchor = memo(function TooltipAnchor(props: TooltipAnchorPro
 			tooltip.registerAnchor(null, node);
 		};
 	});
-	merged.ref = setRef;
 
-	useForwardRefs(element, [ref, elementProps.ref as Ref<HTMLElement> | undefined]);
+	useForwardRefs(element, [ref, renderElement?.props.ref as Ref<HTMLElement> | undefined]);
 
-	// Match Ariakit: an element that cannot take focus gets tabIndex 0, and so does a button in Safari.
-	// The check needs the DOM node, and it runs again when focusable or disabled changes.
-	// A tabIndex prop always wins.
-	useLayoutEffect(() => {
-		const node = element.current;
-		if (!node || merged.tabIndex !== undefined) return;
-		const wanted = focusable && !disabled && (!is_natively_tabbable(node) || needs_safari_tab_index(node));
-		if (wanted && !node.hasAttribute("tabindex")) {
-			node.tabIndex = 0;
-			addedTabIndex.current = true;
-		} else if (!wanted && addedTabIndex.current) {
-			node.removeAttribute("tabindex");
-			addedTabIndex.current = false;
-		}
-	});
+	useFocusableTabIndex(element, focusable && !disabled, merged.tabIndex !== undefined);
 
-	if (typeof render === "function") return render({ ...(merged as HTMLAttributes<HTMLElement>), ref: setRef });
-	if (renderElement) return createElement(renderElement.type, { ...merged, key: renderElement.key });
-	return createElement("div", merged);
+	return render_element(render, merged, setRef, "div");
 });
 // #endregion anchor
 
@@ -405,8 +344,8 @@ export const Tooltip = memo(function Tooltip(props: TooltipProps) {
 
 	if (!open && unmountOnHide) return null;
 
-	const side = tooltip_side(placement);
-	const align = tooltip_align(placement);
+	const side = placement_side(placement);
+	const align = placement_align(placement);
 
 	return (
 		<div
@@ -422,8 +361,8 @@ export const Tooltip = memo(function Tooltip(props: TooltipProps) {
 					"--np-TooltipPositioner-anchor": tooltip.anchorName,
 					"--np-TooltipPositioner-box": `${tooltip.anchorName}-box`,
 					"--np-TooltipPositioner-gutter": `${gutter}px`,
-					"--np-TooltipPositioner-position-area": tooltip_position_area(placement),
-					"--np-TooltipPositioner-position-try-fallbacks": tooltip_position_try_fallbacks(placement),
+					"--np-TooltipPositioner-position-area": placement_position_area(placement),
+					"--np-TooltipPositioner-position-try-fallbacks": placement_position_try_fallbacks(placement),
 				} satisfies Tooltip_CssVars as CSSProperties
 			}
 			onPointerEnter={handlePointerEnter}
@@ -559,7 +498,7 @@ export const TooltipArrow = memo(function TooltipArrow(props: TooltipArrowProps)
 	const tooltip = useTooltipContext("TooltipArrow");
 	// Read the colors again on each open. A theme switch can change them while the tooltip is closed.
 	const { open, placement } = useSyncExternalStore(tooltip.subscribe, tooltip.getSnapshot, tooltip.getSnapshot);
-	const side = tooltip_side(placement);
+	const side = placement_side(placement);
 	const maskId = useId();
 	const element = useRef<HTMLDivElement | null>(null);
 

@@ -1,10 +1,111 @@
-import { useInsertionEffect, useLayoutEffect, useRef, useState, type Ref, type RefObject } from "react";
+import {
+	createElement,
+	isValidElement,
+	useInsertionEffect,
+	useLayoutEffect,
+	useRef,
+	useState,
+	type HTMLAttributes,
+	type ReactElement,
+	type ReactNode,
+	type Ref,
+	type RefCallback,
+	type RefObject,
+	type SyntheticEvent,
+} from "react";
+import { focus_is_natively_tabbable, focus_needs_safari_tab_index } from "./layer/focus.ts";
 
 /**
  * Join class names and skip empty values.
  */
 export function cx(...values: Array<string | false | null | undefined>) {
 	return values.filter(Boolean).join(" ") || undefined;
+}
+
+type RenderProps = HTMLAttributes<HTMLElement> & { ref: RefCallback<HTMLElement> };
+
+/**
+ * The element a component renders. An element gets the component props merged in. A function gets
+ * them as its argument and must spread them.
+ */
+export type RenderProp = ReactElement | ((props: RenderProps) => ReactNode);
+
+type EventHandler = (event: SyntheticEvent<HTMLElement>) => void;
+
+/**
+ * Merge a component's props with the props of its `render` element, like Ariakit: the element's
+ * values win, class names and styles join, and every handler runs. For each name in
+ * `internalNames`, `internal` runs last, after the caller handlers. It decides by itself whether
+ * an earlier `preventDefault()` stops it.
+ */
+export function merge_render_props(
+	props: Record<string, unknown>,
+	render: RenderProp | undefined,
+	internalNames: ReadonlySet<string>,
+	internal: (name: string, event: SyntheticEvent<HTMLElement>) => void,
+) {
+	const elementProps: Record<string, unknown> = isValidElement<Record<string, unknown>>(render) ? render.props : {};
+	const merged: Record<string, unknown> = { ...props };
+	for (const [key, value] of Object.entries(elementProps)) {
+		if (value === undefined || key === "ref") continue;
+		merged[key] = value;
+	}
+	merged.className = cx(props.className as string | undefined, elementProps.className as string | undefined);
+	merged.style =
+		props.style || elementProps.style ? { ...(props.style as object), ...(elementProps.style as object) } : undefined;
+	for (const key of new Set([...Object.keys(props), ...Object.keys(elementProps), ...internalNames])) {
+		if (!/^on[A-Z]/.test(key)) continue;
+		const elementHandler = elementProps[key] as EventHandler | undefined;
+		const propHandler = props[key] as EventHandler | undefined;
+		const isInternal = internalNames.has(key);
+		merged[key] = (event: SyntheticEvent<HTMLElement>) => {
+			if (typeof elementHandler === "function") elementHandler(event);
+			if (typeof propHandler === "function") propHandler(event);
+			if (isInternal) internal(key, event);
+		};
+	}
+	return merged;
+}
+
+/**
+ * Render `render` with the merged props and `ref`, or `defaultTag` when there is no `render`.
+ */
+export function render_element(
+	render: RenderProp | undefined,
+	merged: Record<string, unknown>,
+	ref: RefCallback<HTMLElement>,
+	defaultTag: string,
+) {
+	if (typeof render === "function") return render({ ...(merged as HTMLAttributes<HTMLElement>), ref });
+	if (isValidElement(render)) return createElement(render.type, { ...merged, ref, key: render.key });
+	return createElement(defaultTag, { ...merged, ref });
+}
+
+/**
+ * Match Ariakit's Focusable: an element that cannot take focus gets tabIndex 0, and so does a button
+ * in Safari. The check needs the DOM node, so it runs after each render. With `enabled` false, a
+ * tabindex that this hook added is removed again. A tabIndex prop always wins.
+ */
+export function useFocusableTabIndex(
+	element: RefObject<HTMLElement | null>,
+	enabled: boolean,
+	hasTabIndexProp: boolean,
+) {
+	// The node that got the tabindex from this hook, so only that attribute is removed later.
+	const addedTo = useRef<HTMLElement | null>(null);
+
+	useLayoutEffect(() => {
+		const node = element.current;
+		if (!node || hasTabIndexProp) return;
+		const wanted = enabled && (!focus_is_natively_tabbable(node) || focus_needs_safari_tab_index(node));
+		if (wanted && !node.hasAttribute("tabindex")) {
+			node.setAttribute("tabindex", "0");
+			addedTo.current = node;
+		} else if (!wanted && addedTo.current === node) {
+			node.removeAttribute("tabindex");
+			addedTo.current = null;
+		}
+	});
 }
 
 /**

@@ -1,10 +1,11 @@
 import { anchor_name_add } from "../layer/anchor-name.ts";
 import { layer_stack_add } from "../layer/layer-stack.ts";
-import type { tooltip_Placement } from "./placement.ts";
+import type { Placement } from "../layer/placement.ts";
 
 export type TooltipOptions = {
-	placement: tooltip_Placement;
+	placement: Placement;
 	timeout: number;
+	skipTimeout: number;
 	open: boolean | undefined;
 	setOpen: ((open: boolean) => void) | undefined;
 };
@@ -159,7 +160,7 @@ export function createTooltip(initial: TooltipOptions) {
 		} else {
 			if (current?.active === tooltip) {
 				current.active = null;
-				current.warmUntil = coldClose ? 0 : Date.now() + options.timeout;
+				current.warmUntil = coldClose ? 0 : Date.now() + options.skipTimeout;
 			}
 			// A close while the pointer rests on the anchor must not reopen on the next pointer move.
 			if (hovered) pointerBlocked = true;

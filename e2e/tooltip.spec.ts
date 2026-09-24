@@ -376,8 +376,9 @@ test("the warm window skips the delay after a close, then expires", async ({ pag
 	await button(page, "Share").hover();
 	await expect(tip(page)).toHaveText("Share the file", { timeout: 150 });
 
+	// The window is Ariakit's 300ms skipTimeout, not the 500ms show delay.
 	await button(page, "Plain").hover();
-	await page.waitForTimeout(700);
+	await page.waitForTimeout(400);
 	await button(page, "Save").hover();
 	await page.waitForTimeout(250);
 	await expectNoTip(page);
@@ -512,6 +513,19 @@ test("a disabled anchor never opens", async ({ page }) => {
 	await button(page, "Delete").hover({ force: true });
 	await page.waitForTimeout(700);
 	await page.getByText("Archived").hover();
+	await page.waitForTimeout(700);
+	await expectNoTip(page);
+});
+
+test("a disabled anchor is not a tab stop, even with a tabIndex prop", async ({ page }) => {
+	await openStory(page, "disabled");
+	// Like Ariakit: a tabIndex prop is dropped, and a link, which cannot be disabled, gets -1.
+	await expect(page.getByText("Due", { exact: true })).not.toHaveAttribute("tabindex");
+	await expect(page.getByRole("link", { name: "Docs" })).toHaveAttribute("tabindex", "-1");
+	await expect(page.getByRole("link", { name: "Docs" })).toHaveAttribute("aria-disabled", "true");
+	await focusByKeyboard(page, "Before");
+	await expect(button(page, "After")).toBeFocused();
+	await page.getByText("Due", { exact: true }).hover();
 	await page.waitForTimeout(700);
 	await expectNoTip(page);
 });

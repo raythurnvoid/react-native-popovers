@@ -1,0 +1,96 @@
+/* Story look only. The library ships layout rules, not a theme. */
+.story-Popover {
+	box-sizing: border-box;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	max-width: 280px;
+	padding: 8px;
+
+	border: 1px solid #999;
+	border-radius: 6px;
+
+	background: #fff;
+	color: #111;
+	font:
+		14px/1.4 system-ui,
+		sans-serif;
+	box-shadow: 0 4px 12px rgb(0 0 0 / 0.2);
+}
+
+.story-Popover p {
+	margin: 0;
+}
+
+.story-Tooltip {
+	padding: 4px 6px;
+
+	border-radius: 4px;
+
+	background: #1c1c1c;
+	color: #fff;
+	font:
+		13px/1.4 system-ui,
+		sans-serif;
+}
+
+.story-dismiss {
+	align-self: end;
+}
+
+.story-hint {
+	display: inline-block;
+	padding: 2px 4px;
+
+	background: #eee;
+}
+
+.story-dialog {
+	position: fixed;
+	inset: 80px auto auto 80px;
+	padding: 16px;
+
+	border: 1px solid #999;
+
+	background: #fff;
+}
+
+.story-row {
+	display: flex;
+	gap: 16px;
+	align-items: center;
+}
+
+.story-grid {
+	display: grid;
+	grid-template-columns: repeat(3, auto);
+	gap: 112px 176px;
+	padding: 112px;
+}
+
+/* Whole-pixel cells, so the native and the Ariakit boxes round the same way. The grid fits a
+   1280 by 720 viewport, so no popover needs to flip. */
+.story-parity {
+	display: grid;
+	grid-template-columns: repeat(4, 240px);
+	grid-auto-rows: 180px;
+	padding: 40px 60px;
+}
+
+.story-parity-cell {
+	display: flex;
+	gap: 100px;
+	align-items: center;
+	justify-content: center;
+}
+
+.story-parity-trigger {
+	box-sizing: border-box;
+	width: 32px;
+	height: 24px;
+	padding: 0;
+}
+
+.story-corner {
+	position: fixed;
+}

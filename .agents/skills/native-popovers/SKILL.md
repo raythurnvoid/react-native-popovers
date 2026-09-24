@@ -1,21 +1,21 @@
 ---
 name: native-popovers
-description: Native tooltip layer that uses Popover and CSS Anchor Positioning. Use when changing the tooltip, its Storybook stories, its Playwright tests, or the later menu work on the same layer.
+description: Native tooltip and popover layer that uses the Popover API and CSS Anchor Positioning. Use when changing the tooltip, the popover, their Storybook stories, their Playwright tests, or the later menu work on the same layer.
 ---
 
 # native-popovers
 
 ## Decision
 
-This package replaces Ariakit for floating UI, one piece at a time. The tooltip is the foundation. Menus, popovers, and context menus are later.
+This package replaces Ariakit for floating UI, one piece at a time. The tooltip is the foundation. The click popover is built the same way. Menus and context menus are later.
 
-Use only the Popover API and CSS Anchor Positioning. Do not add a Floating UI fallback. Do not measure rectangles to place the tooltip.
+Use only the Popover API and CSS Anchor Positioning. Do not add a Floating UI fallback. Do not measure rectangles to place the tooltip or the popover.
 
-The public API is the small set of Ariakit props that t3-chat already passes through `MyTooltip`. It is not a full `@ariakit/react` clone.
+The public API is the small set of Ariakit props that t3-chat already passes through `MyTooltip` and `MyPopover`. It is not a full `@ariakit/react` clone.
 
 ## Placement
 
-Copy the logical map in `src/tooltip/placement.ts`. It follows Astryx:
+Copy the logical map in `src/layer/placement.ts`. The tooltip and the popover share it. It follows Astryx:
 
 - block sides use `self-block-start` or `self-block-end`
 - inline sides use `self-inline-start` or `self-inline-end`
@@ -35,19 +35,19 @@ Call `showPopover({ source })`. Keep `popover="manual"`. A manual popover does n
 
 Do not set `place-self`. `position-area` already centers.
 
-`position-visibility: anchors-visible` hides the tooltip while its anchor is scrolled out of view.
+`position-visibility: anchors-visible` hides the tooltip while its anchor is scrolled out of view. Do not set it on the popover: the popover can hold focus, and hiding it would hide the focused element.
 
 ## Arrow
 
 `TooltipArrow` is `position: fixed` inside the top-layer positioner. That is the only way `anchor()` can read the trigger from inside the tooltip; an absolute element cannot. It uses `anchor()` on the trigger (`--np-TooltipPositioner-anchor`) to point at its center, and on the positioner box (`--np-TooltipPositioner-box`) to stay 4px inside the corners.
 
-The positioner has `container-type: anchored`. The `@container anchored(fallback: ...)` blocks in `tooltip.css` move the arrow when the browser flips. They must list the fallback values from `tooltip_position_try_fallbacks` that land on the other side. Change both together.
+The positioner has `container-type: anchored`. The `@container anchored(fallback: ...)` blocks in `tooltip.css` move the arrow when the browser flips. They must list the fallback values from `placement_position_try_fallbacks` that land on the other side. Change both together.
 
 Every `anchor()` has a fallback value. A transform, filter, or paint containment on the content turns off `anchor()` for the arrow, and the fallbacks then center it on the requested side.
 
 The arrow reads the content colors on each open. With no border, it reads a ring box-shadow like Ariakit and sets `data-ring`.
 
-## Controller
+## Tooltip controller
 
 The components are one module, `src/tooltip/tooltip.tsx`, with a region per component (`context`, `provider`, `anchor`, `tooltip`, `arrow`). `tooltip.css` uses the same labels. Add new tooltip code to the matching region. Keep plain, React-free logic (controller, placement, layer stack) in its own file. Later menus should follow the same shape: one component module per widget, and no index barrel.
 
@@ -65,7 +65,7 @@ The components keep one stable ref callback each, so a render does not reset hov
 
 One tooltip is open at a time. Opening one asks the previous one to close.
 
-If any tooltip is open, or one closed inside the current `timeout` window, the next show delay is `0`. A blur close does not start that window.
+If any tooltip is open, or one closed less than `skipTimeout` ago (300ms, like Ariakit), the next show delay is `0`. The window is not `timeout`: with a 2000ms row delay that would open every row at once. A blur close does not start that window.
 
 Escape sets two blocks. Pointer movement cannot reopen until pointer leave. Focus cannot reopen until blur and a new focus.
 
@@ -79,13 +79,29 @@ Outside `pointerdown`, `contextmenu`, and `focusin` close it. When it closes wit
 
 A pending show timer must survive a rerender. Pointer move must not restart it. A pending hide must be cancelled if the pointer comes back.
 
+## Popover
+
+`src/popover/popover.tsx` has the regions `context`, `provider`, `disclosure`, `popover`, and `dismiss`. `popover.css` uses the same labels. `src/popover/popover-controller.ts` has the tooltip controller's shape: `configure`, `request`, `applyOpen`, and `sync`, with the same controlled contract.
+
+Only `Popover` subscribes. The controller writes the trigger's `aria-expanded` and `aria-controls` straight to the DOM, so the trigger never renders on open or close. Keep that when you add props.
+
+The shared render merge (`merge_render_props` and `render_element`) and the Safari tabIndex hook (`useFocusableTabIndex`) are in `src/react-utils.ts`. Focus helpers are in `src/layer/focus.ts`.
+
+Outside rules follow Ariakit's `useHideOnInteractOutside`. "Inside" means the trigger or the positioner. A nested popover or a tooltip inside is a DOM child of the positioner, even though it shows in the top layer. A click closes only when the recorded press also started outside. A right click or a focus move outside closes too. An outside click or right click sets the close reason `"outside"`, and then focus is not restored.
+
+Focus restore runs in `applyOpen(false)`, before the popover hides. It skips an `"outside"` close and a close where focus already sits on a focusable element outside the popover. Focus on show runs in a microtask after `showPopover`, and it leaves focus alone when it is already inside the content.
+
+Escape: the layer stack hands the press back when the target is inside the content. The content's React `onKeyDown` then closes the popover and calls `preventDefault()`, unless a control inside already did. This runs before an Ariakit dialog's own `onKeyDown`, so the dialog sees a handled press. Nested popovers work the same way, inner first.
+
+There is no "close the layers inside" step. When the parent hides, a tooltip inside closes on the pointerleave that every browser sends, and a nested popover closes on the focus that moves back to the parent's trigger. The e2e test "a parent close also closes a tooltip open inside it" checks the tooltip case in all three browsers.
+
 ## Out of scope
 
 Do not implement `store`, `virtualFocus`, `getAnchorRect`, `updatePosition`, or virtual refs. Do not measure the arrow position in JavaScript; keep it in CSS.
 
 Do not copy Fluent's scroll measurement observer. Do not vendor the Fluent repo.
 
-`portal` is accepted and ignored. The top layer is the hoist. `variant` stays in the app, not here.
+`portal` is accepted and ignored. The popover also accepts and ignores `portalElement`. The top layer is the hoist. `variant` stays in the app, not here.
 
 t3-chat uses this package as a git submodule and pnpm workspace package, not from npm. CI must clone the submodule before `pnpm install`.
 
@@ -111,9 +127,11 @@ Playwright starts Storybook on `http://127.0.0.1:6116`. The iframe URL looks lik
 
 When a behavior check is supposed to prove a close or a cancel, break that line on purpose once and watch that assertion fail. Then put it back.
 
+The Storybook watcher on Windows can miss a `sed -i` write, and then Playwright runs the old module. A break proof then stays green for the wrong reason, and a later edit can leave the page throwing on stale imports. After a scripted edit, `touch` the file and check the served module (`curl http://127.0.0.1:6116/src/...`) before you trust a run.
+
 A "stays closed" check must not use a retrying `toHaveCount(0)`: it also passes when a wrong tooltip opens and closes again later. Use `expectNoTip` in the spec, which counts once.
 
-The library CSS is in `@layer native_popovers`. An app that orders its layers must list `native_popovers` first.
+The library CSS is in `@layer native_popovers`. An app that orders its layers must list `native_popovers` after its reset layers and before its component layers. A reset listed after it wins, and Tailwind preflight's `margin: 0` then removes the gutter.
 
 ## References
 
