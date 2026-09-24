@@ -24,6 +24,7 @@ type Pop_Props = Omit<PopoverProviderProps, "children"> & {
 	label: string;
 	children: ReactNode;
 	gutter?: number;
+	overflowPadding?: number;
 	unmountOnHide?: boolean;
 };
 
@@ -31,12 +32,18 @@ type Pop_Props = Omit<PopoverProviderProps, "children"> & {
  * One button with one popover, the shape most stories need.
  */
 function Pop(props: Pop_Props) {
-	const { label, children, gutter = 4, unmountOnHide, ...provider } = props;
+	const { label, children, gutter = 4, overflowPadding, unmountOnHide, ...provider } = props;
 
 	return (
 		<PopoverProvider {...provider}>
 			<PopoverDisclosure>{label}</PopoverDisclosure>
-			<Popover className="story-Popover" gutter={gutter} unmountOnHide={unmountOnHide} aria-label={label}>
+			<Popover
+				className="story-Popover"
+				gutter={gutter}
+				overflowPadding={overflowPadding}
+				unmountOnHide={unmountOnHide}
+				aria-label={label}
+			>
 				{children}
 			</Popover>
 		</PopoverProvider>
@@ -320,6 +327,32 @@ export const Flips: Story = {
 		</>
 	),
 };
+
+const WIDE_TEXT =
+	"A centered popover wider than the space next to its trigger. The browser shifts it into the viewport.";
+
+export const OverflowPadding: Story = {
+	parameters: { layout: "fullscreen" },
+	render: () => (
+		<>
+			<div className="story-corner" style={{ top: 100, right: 4 }}>
+				<Pop label="Default padding" open>
+					{WIDE_TEXT}
+				</Pop>
+			</div>
+			<div className="story-corner" style={{ top: 300, right: 4 }}>
+				<Pop label="No padding" overflowPadding={0} open>
+					{WIDE_TEXT}
+				</Pop>
+			</div>
+			<div className="story-corner" style={{ bottom: 4, left: 100 }}>
+				<Pop label="Right side" placement="right" open>
+					{WIDE_TEXT}
+				</Pop>
+			</div>
+		</>
+	),
+};
 // #endregion placement
 
 // #region layers
@@ -448,6 +481,32 @@ export const InAriakitDialog: Story = {
 		);
 	},
 };
+
+export const AriakitDialogFromPopover: Story = {
+	render: function Render() {
+		const [dialogOpen, setDialogOpen] = useState(false);
+
+		return (
+			<div className="story-row">
+				<Pop label="Notifications" unmountOnHide>
+					<button type="button" onClick={() => setDialogOpen(true)}>
+						View progress
+					</button>
+				</Pop>
+				<button type="button">Outside</button>
+				{/* Rendered outside the popover, like t3-chat modals that a provider owns. */}
+				<AriakitDialogProvider open={dialogOpen} setOpen={setDialogOpen}>
+					<AriakitDialog className="story-dialog" aria-label="Progress">
+						<p>The popover stays open under this modal.</p>
+						<button type="button" onClick={() => setDialogOpen(false)}>
+							Close
+						</button>
+					</AriakitDialog>
+				</AriakitDialogProvider>
+			</div>
+		);
+	},
+};
 // #endregion layers
 
 // #region mounting
@@ -484,6 +543,29 @@ export const HiddenContainer: Story = {
 						<button type="button">Save link</button>
 					</Pop>
 				</div>
+			</div>
+		);
+	},
+};
+
+export const InertContainer: Story = {
+	render: function Render() {
+		const [off, setOff] = useState(false);
+
+		// Like t3-chat's editor toolbar, which the app turns off with `hidden` and `inert` together.
+		// The button inside the popover turns it off without an outside click.
+		return (
+			<div>
+				<div data-testid="container" hidden={off} inert={off}>
+					<Pop label="Link">
+						<button type="button" onClick={() => setOff(true)}>
+							Turn off the toolbar
+						</button>
+					</Pop>
+				</div>
+				<button type="button" onClick={() => setOff(false)}>
+					Turn on the toolbar
+				</button>
 			</div>
 		);
 	},

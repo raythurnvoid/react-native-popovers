@@ -57,6 +57,18 @@ export function createPopover(initial: PopoverOptions) {
 	}
 
 	/**
+	 * True while a modal above the popover made it inert. Ariakit marks the tree outside a modal with
+	 * `inert`. The modal owns the input then, so the popover ignores outside events and Escape, and
+	 * stays open under it, like an Ariakit popover under a modal that opened later.
+	 *
+	 * An app can also turn off its own region with `hidden` and `inert`. That is not a modal. The
+	 * anchor is hidden then, so the popover is not covered, and an outside click or Escape still closes it.
+	 */
+	function covered() {
+		return !!positioner?.closest("[inert]") && !!anchor?.checkVisibility();
+	}
+
+	/**
 	 * Write the disclosure's aria attributes. React does not own them, because the disclosure never
 	 * passes them, so the disclosure does not render on open or close.
 	 */
@@ -96,21 +108,21 @@ export function createPopover(initial: PopoverOptions) {
 			// popover has no recorded press, so it is ignored too.
 			let pressedOutside: boolean | null = null;
 			const onPointerDown = (event: Event) => {
-				pressedOutside = !inside(event.target);
+				pressedOutside = !covered() && !inside(event.target);
 			};
 			const onClick = (event: Event) => {
 				const pressed = pressedOutside;
 				pressedOutside = null;
-				if (!pressed || inside(event.target)) return;
+				if (!pressed || covered() || inside(event.target)) return;
 				request(false, "outside");
 			};
 			const onContextMenu = (event: Event) => {
-				if (inside(event.target)) return;
+				if (covered() || inside(event.target)) return;
 				request(false, "outside");
 			};
 			const onFocusIn = (event: Event) => {
 				// Some browsers send focusin to the document itself when the window gets focus. Ignore it, like Ariakit.
-				if (event.target === doc || inside(event.target)) return;
+				if (event.target === doc || covered() || inside(event.target)) return;
 				// The focused element keeps focus, so this is not an "outside" close for focus restore.
 				request(false);
 			};
@@ -190,7 +202,7 @@ export function createPopover(initial: PopoverOptions) {
 	}
 
 	function escape(event: KeyboardEvent) {
-		if (!open) return false;
+		if (!open || covered()) return false;
 		// A press inside the content goes to the content's own key handler instead. It runs after the
 		// handlers inside the content, so a control that uses Escape first can keep the popover open.
 		if (is_node(event.target) && content?.contains(event.target)) return false;

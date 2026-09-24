@@ -259,6 +259,23 @@ test("the popover flips near a viewport edge", async ({ page }) => {
 	);
 	expect(rightContent.y).toBeGreaterThanOrEqual(rightTrigger.y + rightTrigger.height);
 });
+
+test("a shifted popover keeps overflowPadding from the viewport edge, like Ariakit", async ({ page }) => {
+	await openStory(page, "overflow-padding");
+	const viewport = page.viewportSize()!;
+
+	// The default is 8px, like Ariakit. The trigger sits 4px from the edge, so the centered popover
+	// must shift, and it stops 8px from the edge.
+	const padded = await box(dialog(page, "Default padding"));
+	expect(Math.abs(viewport.width - (padded.x + padded.width) - 8)).toBeLessThanOrEqual(0.5);
+
+	const flush = await box(dialog(page, "No padding"));
+	expect(Math.abs(viewport.width - (flush.x + flush.width))).toBeLessThanOrEqual(0.5);
+
+	// A popover on the right side shifts up from the bottom edge the same way.
+	const side = await box(dialog(page, "Right side"));
+	expect(Math.abs(viewport.height - (side.y + side.height) - 8)).toBeLessThanOrEqual(0.5);
+});
 // #endregion placement
 
 // #region controlled
@@ -403,6 +420,40 @@ for (const story of ["in-dialog", "in-ariakit-dialog"]) {
 		await expect(settings).toBeHidden();
 	});
 }
+
+test("a modal opened from inside the popover keeps it open under the modal, like Ariakit", async ({ page }) => {
+	await openStory(page, "ariakit-dialog-from-popover");
+	const trigger = button(page, "Notifications");
+	const notifications = dialog(page, "Notifications");
+	const progress = dialog(page, "Progress");
+	await trigger.click();
+	// Open by keyboard: WebKit does not focus a clicked button, and then the modal has no element
+	// to return focus to.
+	await button(page, "View progress").focus();
+	await page.keyboard.press("Enter");
+	await expect(progress).toBeVisible();
+	await expect(button(page, "Close")).toBeFocused();
+	// The modal made the popover inert. It stays open, but hidden, so the top layer does not paint it
+	// above the modal.
+	await expect(trigger).toHaveAttribute("aria-expanded", "true");
+	await expect(notifications).toBeHidden();
+
+	await page.keyboard.press("Escape");
+	await expect(progress).toBeHidden();
+	await expect(notifications).toBeVisible();
+	await expect(button(page, "View progress")).toBeFocused();
+
+	// A click outside the modal closes only the modal.
+	await button(page, "View progress").click();
+	await expect(progress).toBeVisible();
+	await page.mouse.click(5, 5);
+	await expect(progress).toBeHidden();
+	await expect(notifications).toBeVisible();
+
+	await page.keyboard.press("Escape");
+	await expect(notifications).toBeHidden();
+	await expect(trigger).toBeFocused();
+});
 // #endregion layers
 
 // #region mounting
@@ -427,5 +478,32 @@ test("a hidden container hides the popover too, because it keeps its DOM parent"
 	await expect(page.locator('[role="dialog"][aria-label="Link"]')).toBeHidden();
 	await page.getByRole("combobox", { name: "Hide" }).selectOption("none");
 	await expect(dialog(page, "Link")).toBeVisible();
+});
+
+test("a region the app turns off with hidden and inert is not a modal: outside clicks and Escape still close", async ({
+	page,
+}) => {
+	await openStory(page, "inert-container");
+	// The trigger is hidden while the region is off, so the role query must include hidden elements.
+	const link = page.getByRole("button", { name: "Link", exact: true, includeHidden: true });
+	const container = page.getByTestId("container");
+
+	await link.click();
+	await page.getByRole("button", { name: "Turn off the toolbar" }).click();
+	await expect(container).toBeHidden();
+	await expect(link).toHaveAttribute("aria-expanded", "true");
+	await page.mouse.click(5, 300);
+	await expect(link).toHaveAttribute("aria-expanded", "false");
+
+	await page.getByRole("button", { name: "Turn on the toolbar" }).click();
+	await link.click();
+	await page.getByRole("button", { name: "Turn off the toolbar" }).click();
+	await expect(container).toBeHidden();
+	await page.keyboard.press("Escape");
+	await expect(link).toHaveAttribute("aria-expanded", "false");
+
+	// The popover stays closed when the region comes back.
+	await page.getByRole("button", { name: "Turn on the toolbar" }).click();
+	await expect(page.locator('[role="dialog"][aria-label="Link"]')).toBeHidden();
 });
 // #endregion mounting

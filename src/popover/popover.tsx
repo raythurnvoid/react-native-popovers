@@ -156,6 +156,7 @@ type Popover_ClassNames = "np-PopoverPositioner" | "np-Popover";
 type Popover_CssVars = {
 	"--np-PopoverPositioner-anchor": string;
 	"--np-PopoverPositioner-gutter": string;
+	"--np-PopoverPositioner-overflow-padding": string;
 	"--np-PopoverPositioner-position-area": string;
 	"--np-PopoverPositioner-position-try-fallbacks": string;
 };
@@ -175,6 +176,12 @@ export type PopoverProps = ComponentPropsWithRef<"div"> & {
 	 * @default 0
 	 */
 	gutter?: number;
+	/**
+	 * Least space between the popover and the viewport edges, in pixels, on the axis where the browser
+	 * shifts it (across the side it opens on). Like Ariakit's `overflowPadding`.
+	 * @default 8
+	 */
+	overflowPadding?: number;
 	/**
 	 * Remove the content from the DOM while closed. With `false`, it stays mounted and hidden, like Ariakit.
 	 * @default false
@@ -198,6 +205,7 @@ export const Popover = memo(function Popover(props: PopoverProps) {
 		portal: _portal,
 		portalElement: _portalElement,
 		gutter = 0,
+		overflowPadding = 8,
 		unmountOnHide = false,
 		onKeyDown,
 		...rest
@@ -250,6 +258,7 @@ export const Popover = memo(function Popover(props: PopoverProps) {
 				{
 					"--np-PopoverPositioner-anchor": popover.anchorName,
 					"--np-PopoverPositioner-gutter": `${gutter}px`,
+					"--np-PopoverPositioner-overflow-padding": `${overflowPadding}px`,
 					"--np-PopoverPositioner-position-area": placement_position_area(placement),
 					"--np-PopoverPositioner-position-try-fallbacks": placement_position_try_fallbacks(placement),
 				} satisfies Popover_CssVars as CSSProperties

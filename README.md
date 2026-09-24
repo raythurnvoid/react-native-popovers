@@ -185,16 +185,16 @@ The popover tests skip nothing. Two WebKit habits shaped them: a click does not 
 
 `src/popover/popover.tsx` is a click popover: a non-modal dialog next to its trigger. It is built like the tooltip: one controller per provider (`src/popover/popover-controller.ts`), `popover="manual"`, `showPopover({ source })`, and CSS anchor positioning. Import it from `native-popovers/popover`.
 
-The names match the Ariakit pieces that `MyPopover` renders:
+The names match the Ariakit pieces that `MyPopover` used before it moved here:
 
 - `PopoverProvider` — `placement`, `open`, `setOpen`, `children`
 - `PopoverDisclosure` — `render` (an element or a function), `children`, and any HTML props
-- `Popover` — `children`, `gutter`, `unmountOnHide`, `portal`, `portalElement`, and any div props for the content
+- `Popover` — `children`, `gutter`, `overflowPadding`, `unmountOnHide`, `portal`, `portalElement`, and any div props for the content
 - `PopoverDismiss` — `render`, `children`, and any HTML props
 
-Defaults follow Ariakit: `placement` is `bottom`, `gutter` is `0`, and `unmountOnHide` is `false`, so the content stays in the DOM, hidden, while closed. `portal` and `portalElement` are accepted and ignored: the top layer is the hoist. Without `render`, `PopoverDisclosure` and `PopoverDismiss` are a `button type="button"`. `PopoverDismiss` without children shows Ariakit's X icon, labeled "Dismiss popup".
+Defaults follow Ariakit: `placement` is `bottom`, `gutter` is `0`, `overflowPadding` is `8`, and `unmountOnHide` is `false`, so the content stays in the DOM, hidden, while closed. `portal` and `portalElement` are accepted and ignored: the top layer is the hoist. Without `render`, `PopoverDisclosure` and `PopoverDismiss` are a `button type="button"`. `PopoverDismiss` without children shows Ariakit's X icon, labeled "Dismiss popup".
 
-`Popover` renders `np-PopoverPositioner` (the popover element, with the placement and the gap) and `np-Popover` (the content, `role="dialog"`, `tabIndex={-1}`). The content has `data-side`, `data-align`, `data-open`, and `data-enter`, like the tooltip. `--np-PopoverPositioner-gutter` sets the gap.
+`Popover` renders `np-PopoverPositioner` (the popover element, with the placement and the gap) and `np-Popover` (the content, `role="dialog"`, `tabIndex={-1}`). The content has `data-side`, `data-align`, `data-open`, and `data-enter`, like the tooltip. `--np-PopoverPositioner-gutter` sets the gap, and `--np-PopoverPositioner-overflow-padding` the space to the viewport edge.
 
 Only `Popover` subscribes to the controller. The controller writes the trigger's `aria-expanded` and `aria-controls` to the DOM itself, so opening and closing never render the trigger. `aria-haspopup="dialog"` is static.
 
@@ -214,17 +214,20 @@ Ariakit is the behavior reference. These are checked in `e2e/popover.spec.ts`:
 - Escape and `PopoverDismiss` close and move focus back to the trigger. So does a close that the parent applies, except after a refused outside click: that request marks the close as outside until the next open, like Ariakit.
 - An outside click closes. It closes only when the press also started outside, so a text selection dragged out of the content does not close it. Focus stays where the user clicked. A right click or a focus move outside also closes it.
 - Shift+Tab from the first element goes to the trigger and keeps the popover open. Tab past the last element closes it.
+- A modal that opens above the popover (an Ariakit dialog opened from a button inside it) keeps it open. The modal makes the popover `inert`, and while it is inert the popover ignores outside clicks, focus moves, and Escape. Escape then closes the modal first, and focus goes back into the popover. This rule needs a visible trigger. When the app turns off the trigger's own region with `hidden` and `inert`, it is not a modal, so an outside click or Escape still closes the popover.
 - A tooltip inside and a nested popover close first on Escape. A click in a nested popover keeps both open. A click in the parent closes only the child.
 - A control inside that uses Escape first (it calls `preventDefault()`) keeps the popover open. The popover's own Escape also calls `preventDefault()`, so a native `<dialog>` or an Ariakit dialog around it stays open.
 - A controlled parent can refuse a close. `setOpen` still runs. StrictMode works.
 - Placement and gutter match Ariakit within 0.5px for all 12 placements. It flips near a viewport edge.
+- When the browser shifts a centered popover into the viewport, it stops `overflowPadding` (8px) from the edge, like Ariakit. The padding is a margin across the side the popover opens on, so the browser keeps it inside the viewport.
 
 ### Differences from Ariakit
 
-- No 8px viewport padding. Ariakit's `slide` keeps the popover 8px from the edge. CSS fallbacks only flip or slide it to the edge.
+- `overflowPadding` works only across the side the popover opens on. Along that side, the popover flips when it does not fit with its gutter; Ariakit also keeps the padding there. A start or end popover that does not fit flips to the other alignment; Ariakit slides it instead.
 - No `--popover-available-width` or `--popover-available-height` variables.
 - Ariakit rounds the position to device pixels. The native position keeps fractions, so the two can differ by up to half a pixel.
-- Elements that a React portal renders outside the content count as outside, so a click on them or a focus move into them closes the popover.
+- Elements that a React portal renders outside the content count as outside, so a click on them or a focus move into them closes the popover. A modal that makes the popover `inert` is the exception (see Behavior).
+- Under a modal that opened later, the popover is hidden, not dimmed by the modal backdrop. It is in the top layer, so it would paint above a modal that is not.
 - The popover keeps its DOM parent. When the trigger's container gets `visibility: hidden` or `display: none`, the popover hides too, and it shows again when the container comes back. It stays open the whole time. Ariakit's portal would keep it visible.
 - No `PopoverHeading`, so the content has no accessible name unless you pass `aria-label` or `aria-labelledby`.
 - No hidden dismiss button and no `modal` mode.
@@ -278,7 +281,7 @@ Storybook compiles the code with the React Compiler (`.storybook/main.ts`), like
 
 This repo is a t3-chat submodule at `packages/native-popovers`. It is not published to npm: the app uses it as a pnpm workspace package, and CI clones the submodule before `pnpm install --frozen-lockfile`.
 
-`MyTooltip` renders `TooltipProvider`, `TooltipAnchor`, `Tooltip`, and `TooltipArrow` from this package. The `My*` components and their call sites kept their JSX. Keep this app setup (`packages/app/src/components/my-tooltip.css`, `app.css`, and `vite.config.ts`):
+`MyTooltip` renders `TooltipProvider`, `TooltipAnchor`, `Tooltip`, and `TooltipArrow` from this package. `MyPopover` renders `PopoverProvider`, `PopoverDisclosure`, `Popover`, and `PopoverDismiss`. The `My*` components and their call sites kept their JSX. Keep this app setup (`packages/app/src/components/my-tooltip.css`, `app.css`, and `vite.config.ts`):
 
 - No `contain`, `transform`, or `filter` on `.MyTooltipContent`. They turn off `anchor()` for the arrow (see the limit under Styling).
 - `MyTooltipContent` passes `interactive={false}` by default, instead of `pointer-events: none` in CSS. The CSS alone leaves the gap strips catching the pointer.
@@ -289,7 +292,12 @@ This repo is a t3-chat submodule at `packages/native-popovers`. It is not publis
 - The package has `react` as a peer dependency, so the app's React is used.
 - Keep `build.cssMinify: false` (or `"esbuild"`) in `packages/app/vite.config.ts`. lightningcss 1.33, Vite's default CSS minifier, cannot parse `@container anchored(...)` and fails the build ([lightningcss#1176](https://github.com/parcel-bundler/lightningcss/issues/1176)). Do not switch the app to `css.transformer: "lightningcss"` until that is fixed. The Storybook config here uses `"esbuild"` for the same reason.
 
-`MyPopover` still uses Ariakit. Before it moves to `Popover`, check the differences listed under "Popover": the two rich text popovers sit inside the Tiptap bubble menu, which hides itself, and two call sites read `--popover-available-width` in their CSS. Menus are a later pass. A context menu should use a real 1px element at the pointer, not `getAnchorRect`.
+`MyPopoverContent` keeps its own default of `gutter={4}`. Two app notes:
+
+- The link and comment popovers sit inside the Tiptap bubble menu, and the bubble hides itself on Escape. Its Escape handlers in `file-editor-rich-text.tsx` skip a press when a layer already used it (`defaultPrevented`), or when a popover in the bubble still has `data-open`.
+- The notifications and chat jobs popovers do not read `--popover-available-width`. `overflowPadding` keeps them 8px from the viewport edge.
+
+Menus are a later pass. A context menu should use a real 1px element at the pointer, not `getAnchorRect`.
 
 ## Reference submodules
 

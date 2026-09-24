@@ -37,6 +37,40 @@
 		margin-inline: var(--np-PopoverPositioner-gutter, 0px);
 	}
 
+	/* The overflow padding is a margin on the other axis. The browser shifts a centered popover into
+	   the viewport and keeps the margin box inside it, so the border box stays this far from the edge.
+	   A start or end popover gets it only on its far edge: the near edge lines up with the trigger. A
+	   flip-inline or flip-block fallback mirrors the margins with the position. */
+	:where(.np-PopoverPositioner:is([data-side="top"], [data-side="bottom"])[data-align="center"]) {
+		margin-inline: var(--np-PopoverPositioner-overflow-padding, 0px);
+	}
+
+	:where(.np-PopoverPositioner:is([data-side="top"], [data-side="bottom"])[data-align="start"]) {
+		margin-inline-end: var(--np-PopoverPositioner-overflow-padding, 0px);
+	}
+
+	:where(.np-PopoverPositioner:is([data-side="top"], [data-side="bottom"])[data-align="end"]) {
+		margin-inline-start: var(--np-PopoverPositioner-overflow-padding, 0px);
+	}
+
+	:where(.np-PopoverPositioner:is([data-side="left"], [data-side="right"])[data-align="center"]) {
+		margin-block: var(--np-PopoverPositioner-overflow-padding, 0px);
+	}
+
+	:where(.np-PopoverPositioner:is([data-side="left"], [data-side="right"])[data-align="start"]) {
+		margin-block-end: var(--np-PopoverPositioner-overflow-padding, 0px);
+	}
+
+	:where(.np-PopoverPositioner:is([data-side="left"], [data-side="right"])[data-align="end"]) {
+		margin-block-start: var(--np-PopoverPositioner-overflow-padding, 0px);
+	}
+
+	/* A modal above the popover made it inert (Ariakit marks the tree outside a modal that way). The
+	   top layer would still paint the popover above that modal, so hide it until the modal closes. */
+	:where([inert] .np-PopoverPositioner, .np-PopoverPositioner[inert]) {
+		visibility: hidden;
+	}
+
 	:where(.np-Popover) {
 		pointer-events: auto;
 	}
