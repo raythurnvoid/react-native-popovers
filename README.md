@@ -69,7 +69,6 @@ The code follows SybTooltipV3's shape. `TooltipProvider` creates one plain contr
 - Only `Tooltip` (and `TooltipArrow` inside it) subscribes with `useSyncExternalStore`. The anchor and its parent never render during hover. This is the part that makes a long list of rows cheap.
 - `getSnapshot` returns a new `{ open, placement }` object on each change, and the components render only from it. Do not read the controller's mutable state during render: the React Compiler caches work on the stable controller object, so such a read can go stale.
 - The anchor gets its `anchor-name` only while its tooltip is open. Idle anchors have no anchor styles at all.
-- `aria-describedby` is written to the anchor directly, not through React props.
 - All tooltips in one document share a small group: the open one and the warm window.
 - Escape goes through a small layer stack (`src/layer/layer-stack.ts`). It is the base for menus later.
 
@@ -85,13 +84,17 @@ All four components live in `src/tooltip/tooltip.tsx`, one region each, with the
 The names match the Ariakit pieces that `MyTooltip` already renders:
 
 - `TooltipProvider` — `placement`, `timeout`, `open`, `setOpen`, `children`
-- `TooltipAnchor` — `render` (an element or a function), `children`, `focusable`, `disabled`, and any HTML props such as `tabIndex`, `className`, or handlers
-- `Tooltip` — `children`, `gutter`, `unmountOnHide`, `portal`, and any div props for the content
+- `TooltipAnchor` — `render` (an element or a function), `children`, `focusable`, `disabled`, `showOnHover`, and any HTML props such as `tabIndex`, `className`, or handlers
+- `Tooltip` — `children`, `gutter`, `unmountOnHide`, `interactive`, `portal`, and any div props for the content
 - `TooltipArrow` — `size`, `borderWidth`, and any div props
 
 `timeout` is the hover show delay in milliseconds. The default is `500`, same as Ariakit's hovercard. Hide is immediate. `placement` defaults to `top`. `gutter` defaults to `8`. `unmountOnHide` defaults to `true`, so the content is not in the DOM until the tooltip is open. `TooltipArrow` `size` defaults to `16`, and it adds half its size to the gap, like Ariakit.
 
 `TooltipAnchor` merges props like Ariakit. Without `render`, it is a `div` around `children`. With a `render` element, the element's own values win, class names and styles join, and every handler runs. The tooltip's own handler runs last and skips when an earlier one called `preventDefault()`. A function `render` gets the merged props and must spread them.
+
+`showOnHover={false}` stops hover from showing the tip. A function gets the pointer move event and is asked on each move, like Ariakit, so it can skip hover while the anchor is in some state (for example, `aria-expanded="true"` while its menu is open). Focus still shows the tip.
+
+`interactive` defaults to `true`: the pointer can cross the gap into the tooltip, and its text can be selected or clicked. With `interactive={false}`, the tooltip and its gap strips let the pointer pass through to the page, so leaving the anchor closes the tooltip. Use it for tooltips over dense lists, where a tip under one row must not catch the pointer on its way to the next row.
 
 `focusable={false}` keeps the anchor out of the Tab order and stops focus from showing the tip. Hover still shows it. `disabled` never shows the tip, sets `aria-disabled`, and sets the native `disabled` on elements that have it. An element that cannot take focus gets `tabIndex={0}`, and loses it again when `disabled` or `focusable={false}` is set later.
 
@@ -152,12 +155,12 @@ Ariakit is the behavior reference. These are checked in `e2e/tooltip.spec.ts`:
 - One tooltip is open at a time. Moving to another one opens it at once.
 - After a close, the next show skips the delay for one `timeout` window. A blur close does not start that window.
 - A controlled parent can refuse an open or a close. `setOpen` still runs for each request. The DOM follows the `open` prop.
-- `aria-describedby` keeps the anchor's own ids and adds the tooltip id while it is open, also after the anchor's own ids change.
+- The tooltip does not touch the anchor's `aria-describedby`, like Ariakit. Many anchors already carry the tooltip text as their `aria-label` or as their own description, so adding the tooltip id would make screen readers read it twice. An anchor whose tooltip is its only text needs its own label or description.
 - StrictMode hover and a StrictMode controlled open work.
 
 ## Differences from Ariakit
 
-- `aria-describedby` is set on the anchor while open. Ariakit does not set it.
+- `interactive` is a single boolean. Ariakit spreads the same idea over hovercard options (`hideOnHoverOutside`, `disablePointerEventsOnApproach`) and CSS.
 - `unmountOnHide` defaults to `true`. Ariakit defaults to `false`.
 - Escape is handled in the window capture phase and marked with `preventDefault()`. A handler inside the page cannot cancel it first. In exchange, Ariakit dialogs and native dialogs under the tooltip see a handled press and stay open.
 - The gap strips replace the safe triangle.
@@ -222,14 +225,14 @@ Storybook compiles the code with the React Compiler (`.storybook/main.ts`), like
 
 ## Later, in t3-chat
 
-This repo is a t3-chat submodule. The root pnpm workspace excludes it, same as `packages/council`. CI does not clone it. Do not import it from the app until a publish or a CI checkout exists. Importing it now would break `pnpm install --frozen-lockfile` on CI.
+This repo is a t3-chat submodule at `packages/native-popovers`. It is not published to npm: the app uses it as a pnpm workspace package, and CI must clone the submodule before `pnpm install --frozen-lockfile`. The migration plan wires both.
 
 When that is ready, `MyTooltip` can render `TooltipProvider`, `TooltipAnchor`, `Tooltip`, and `TooltipArrow` from this package. The `My*` components and the call sites stay. Menus are a later pass. A context menu should use a real 1px element at the pointer, not `getAnchorRect`.
 
 Changes the app needs in that pass (`packages/app/src/components/my-tooltip.css` and `app.css`):
 
 - Remove `contain: content` from `.MyTooltipContent`. It turns off `anchor()` for the arrow (see the limit under Styling).
-- Remove `pointer-events: none` from `.MyTooltipContent`. With it, the pointer passes through the tooltip, so it cannot be hovered or its text selected, and it closes when the pointer crosses into it.
+- Replace `pointer-events: none` on `.MyTooltipContent` with `interactive={false}` on `Tooltip`. The CSS alone leaves the gap strips catching the pointer.
 - Drop the `.MyTooltipArrow` square rotated with `transform`, and let `TooltipArrow` draw the arrow. Style its colors through the content background and border.
 - Add `native_popovers` first in the app's `@layer` order in `app.css`. The app's CSS layer order plugin reads that list, and an unlisted layer lands last and beats the app layers.
 - Add `packages/native-popovers/src` to the React Compiler `sources` in `packages/app/vite.config.ts`, so the app compiles it the same way Storybook does here.

@@ -55,7 +55,9 @@ The components are one module, `src/tooltip/tooltip.tsx`, with a region per comp
 
 Render only from the `useSyncExternalStore` snapshot (`{ open, placement }`, a new object on each change). Add a field there when a component needs new state. Never read the controller's mutable state during render: the React Compiler caches work on the stable controller object, so the read can go stale. Event handlers that read refs go through `useFn`, like the anchor's single `handleInternal`, because the compiler cannot tell that merged props are only called as handlers.
 
-The anchor gets its `anchor-name` and the tooltip id in `aria-describedby` only while open, written straight to the DOM.
+The anchor gets its `anchor-name` only while open, written straight to the DOM. Do not add the tooltip id to the anchor's `aria-describedby`: like Ariakit, the tooltip leaves it alone, because many anchors already carry the tooltip text as their name or description.
+
+`Tooltip`'s `interactive={false}` sets `data-interactive="false"` on the positioner, and one CSS rule turns off pointer events on the gap strips and the content. `TooltipAnchor`'s `showOnHover` is checked in the `onPointerMove` branch of `handleInternal`, like Ariakit's mouse-move check.
 
 `Tooltip` renders a positioner (`np-TooltipPositioner`, the popover) and the content (`np-Tooltip`). The positioner owns placement and the gap. The content gets the user props.
 
@@ -85,7 +87,7 @@ Do not copy Fluent's scroll measurement observer. Do not vendor the Fluent repo.
 
 `portal` is accepted and ignored. The top layer is the hoist. `variant` stays in the app, not here.
 
-Do not import this package from t3-chat app code until CI clones the submodule or the package is published. The workspace exclude is intentional.
+t3-chat uses this package as a git submodule and pnpm workspace package, not from npm. CI must clone the submodule before `pnpm install`.
 
 ## Checks
 

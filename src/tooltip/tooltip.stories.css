@@ -67,6 +67,14 @@
 	align-items: center;
 }
 
+/* Rows close together, so a tooltip under the first row covers the second. */
+.story-column {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	align-items: start;
+}
+
 .story-scroll {
 	width: 260px;
 	height: 160px;

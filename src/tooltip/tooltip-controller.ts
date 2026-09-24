@@ -55,8 +55,6 @@ export function createTooltip(initial: TooltipOptions) {
 	let hideTimer: ReturnType<typeof setTimeout> | undefined;
 	let removeShowListeners: (() => void) | undefined;
 	let shown: { anchor: HTMLElement; positioner: HTMLElement; hide: () => void } | null = null;
-	let describedAnchor: HTMLElement | null = null;
-	let describedId: string | null = null;
 	const listeners = new Set<() => void>();
 
 	function notify() {
@@ -77,31 +75,6 @@ export function createTooltip(initial: TooltipOptions) {
 
 	function inside(target: EventTarget | null) {
 		return is_node(target) && (!!anchor?.contains(target) || !!positioner?.contains(target));
-	}
-
-	/**
-	 * Keep the anchor's own aria-describedby ids and add the tooltip id only while it is open.
-	 */
-	function describe() {
-		const nextId = open && content?.id ? content.id : null;
-		const nextAnchor = nextId ? anchor : null;
-
-		if (describedAnchor && describedId && (describedAnchor !== nextAnchor || describedId !== nextId)) {
-			const ids = (describedAnchor.getAttribute("aria-describedby") ?? "")
-				.split(/\s+/)
-				.filter((id) => id && id !== describedId);
-			if (ids.length) describedAnchor.setAttribute("aria-describedby", ids.join(" "));
-			else describedAnchor.removeAttribute("aria-describedby");
-		}
-
-		// React resets the attribute when the anchor's own prop changes, so add the id back when it is missing.
-		if (nextAnchor && nextId) {
-			const ids = (nextAnchor.getAttribute("aria-describedby") ?? "").split(/\s+/).filter(Boolean);
-			if (!ids.includes(nextId)) nextAnchor.setAttribute("aria-describedby", [...ids, nextId].join(" "));
-		}
-
-		describedAnchor = nextAnchor;
-		describedId = nextId;
 	}
 
 	/**
@@ -162,8 +135,6 @@ export function createTooltip(initial: TooltipOptions) {
 				},
 			};
 		}
-
-		describe();
 	}
 
 	function cancelShow() {
@@ -247,7 +218,6 @@ export function createTooltip(initial: TooltipOptions) {
 			if (placementChanged) notify();
 		},
 		request,
-		syncDescription: describe,
 		registerAnchor(element: HTMLElement | null, previous: HTMLElement | null) {
 			if (element) {
 				if (!anchor) setActiveAnchor(element);
@@ -271,7 +241,6 @@ export function createTooltip(initial: TooltipOptions) {
 		},
 		setContent(element: HTMLElement | null) {
 			content = element;
-			describe();
 		},
 		pointerEnter() {
 			hovered = true;

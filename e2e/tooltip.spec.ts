@@ -211,12 +211,9 @@ test("keyboard focus opens at once, blur closes", async ({ page }) => {
 	await focusByKeyboard(page, "Before");
 	await expect(button(page, "Save")).toBeFocused();
 	await expect(tip(page)).toBeVisible({ timeout: 150 });
-	const id = await tip(page).getAttribute("id");
-	await expect(button(page, "Save")).toHaveAttribute("aria-describedby", id!);
 
 	await page.keyboard.press("Tab");
 	await expect(tip(page)).toHaveCount(0);
-	await expect(button(page, "Save")).not.toHaveAttribute("aria-describedby");
 });
 
 test("a mouse press focuses without opening and does not block the next Tab", async ({ page }) => {
@@ -339,9 +336,6 @@ test("one tooltip with two anchors moves to the anchor under the pointer", async
 	const second = await box(button(page, "Second"));
 	const content = await box(tip(page));
 	expect(content.x + content.width / 2).toBeCloseTo(second.x + second.width / 2, 0);
-	const id = await tip(page).getAttribute("id");
-	await expect(button(page, "Second")).toHaveAttribute("aria-describedby", id!);
-	await expect(button(page, "First")).not.toHaveAttribute("aria-describedby");
 });
 
 test("a tooltip mounted open joins the group, so the next one asks it to close", async ({ page }) => {
@@ -483,30 +477,30 @@ test("a controlled close blocks the resting pointer until it leaves", async ({ p
 	await expect(tip(page)).toBeVisible({ timeout: 1000 });
 });
 
-test("StrictMode controlled open shows one described tooltip", async ({ page }) => {
+test("StrictMode controlled open shows one tooltip", async ({ page }) => {
 	await openStory(page, "strict-controlled");
 	await expect(tip(page)).toBeVisible();
 	await expect(page.locator(".np-TooltipPositioner")).toHaveCount(1);
-	const id = await tip(page).getAttribute("id");
-	await expect(button(page, "Save")).toHaveAttribute("aria-describedby", id!);
 });
 // #endregion controlled
 
 // #region accessibility
-test("aria-describedby keeps the anchor's own ids, also after they change", async ({ page }) => {
+test("an open tooltip leaves the anchor's own aria-describedby as it is", async ({ page }) => {
+	// Like Ariakit. Many anchors already carry the tooltip text as their name or description, so
+	// adding the tooltip id would make screen readers read the same text twice.
 	await openStory(page, "described");
-	const id = await tip(page).getAttribute("id");
-	await expect(button(page, "Save")).toHaveAttribute("aria-describedby", `hint-a ${id}`);
+	await expect(tip(page)).toBeVisible();
+	await expect(button(page, "Save")).toHaveAttribute("aria-describedby", "hint-a");
 	await button(page, "Swap hint").click();
-	await expect(button(page, "Save")).toHaveAttribute("aria-describedby", `hint-b ${id}`);
+	await expect(button(page, "Save")).toHaveAttribute("aria-describedby", "hint-b");
 });
 
-test("a custom id is used for aria-describedby", async ({ page }) => {
+test("a custom id goes to the content", async ({ page }) => {
 	await openStory(page, "custom-id");
 	await button(page, "Save").focus();
 	await page.keyboard.press("ArrowDown");
 	await expect(tip(page)).toHaveAttribute("id", "save-tip");
-	await expect(button(page, "Save")).toHaveAttribute("aria-describedby", "save-tip");
+	await expect(button(page, "Save")).not.toHaveAttribute("aria-describedby");
 });
 
 test("a disabled anchor never opens", async ({ page }) => {
@@ -878,6 +872,47 @@ test("the pointer can cross the gap into the tooltip and click its text", async 
 
 	await page.mouse.click(5, 5);
 	await expect(tip(page)).toHaveCount(0);
+});
+
+test("interactive={false} lets the pointer pass through, so leaving the anchor closes the tooltip", async ({
+	page,
+}) => {
+	await openStory(page, "not-interactive");
+	await button(page, "Row 1").hover();
+	await expect(tip(page)).toBeVisible({ timeout: 500 });
+	const anchor = await box(button(page, "Row 1"));
+	const content = await box(tip(page));
+
+	// The gap between the anchor and the tooltip belongs to the page, not to a gap strip.
+	const gapHit = await page.evaluate(
+		({ x, y }) => document.elementFromPoint(x, y)?.closest(".np-TooltipPositioner") !== null,
+		{ x: content.x + content.width / 2, y: (anchor.y + anchor.height + content.y) / 2 },
+	);
+	expect(gapHit, "the gap strip caught the pointer").toBe(false);
+
+	await page.mouse.move(content.x + content.width / 2, content.y + content.height / 2, { steps: 12 });
+	await expect(tip(page)).toHaveCount(0);
+});
+
+test("showOnHover can skip hover while the anchor is in some state", async ({ page }) => {
+	await openStory(page, "show-on-hover");
+	await button(page, "Menu").hover();
+	await expect(tip(page)).toBeVisible({ timeout: 500 });
+
+	// The story's callback skips hover while aria-expanded is true, like a menu button with its menu open.
+	await button(page, "Menu").click();
+	await expect(button(page, "Menu")).toHaveAttribute("aria-expanded", "true");
+	await page.mouse.move(5, 5);
+	await expect(tip(page)).toHaveCount(0);
+	await button(page, "Menu").hover();
+	await page.waitForTimeout(300);
+	await expectNoTip(page);
+
+	await button(page, "Menu").click();
+	await expect(button(page, "Menu")).toHaveAttribute("aria-expanded", "false");
+	await page.mouse.move(5, 5);
+	await button(page, "Menu").hover();
+	await expect(tip(page)).toBeVisible({ timeout: 500 });
 });
 
 test("scrolling keeps the tooltip open and hides it while the anchor is out of view", async ({ page, browserName }) => {

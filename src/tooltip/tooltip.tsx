@@ -116,6 +116,12 @@ export type TooltipAnchorProps = HTMLAttributes<HTMLElement> & {
 	 * @default false
 	 */
 	disabled?: boolean;
+	/**
+	 * Show the tooltip on hover. A function is asked on each pointer move, like Ariakit, so it can
+	 * skip hover while the anchor is in some state (for example, while its menu is open).
+	 * @default true
+	 */
+	showOnHover?: boolean | ((event: PointerEvent<HTMLElement>) => boolean);
 };
 
 type EventHandler = (event: SyntheticEvent<HTMLElement>) => void;
@@ -172,10 +178,10 @@ function needs_safari_tab_index(element: HTMLElement) {
 
 /**
  * The element that shows the tooltip on hover and on keyboard focus.
- * Hover and focus do not render it again. The tooltip id is added to its `aria-describedby` while open.
+ * Hover and focus do not render it again. Like Ariakit, it does not add the tooltip to its `aria-describedby`.
  */
 export const TooltipAnchor = memo(function TooltipAnchor(props: TooltipAnchorProps) {
-	const { ref, render, focusable = true, disabled = false, children, ...rest } = props;
+	const { ref, render, focusable = true, disabled = false, showOnHover = true, children, ...rest } = props;
 	const tooltip = useTooltipContext("TooltipAnchor");
 	const renderElement = isValidElement<Record<string, unknown>>(render) ? render : null;
 	const elementProps = renderElement?.props ?? {};
@@ -196,6 +202,7 @@ export const TooltipAnchor = memo(function TooltipAnchor(props: TooltipAnchorPro
 				return;
 			case "onPointerMove":
 				if ((event as PointerEvent<HTMLElement>).pointerType === "touch" || disabled) return;
+				if (typeof showOnHover === "function" ? !showOnHover(event as PointerEvent<HTMLElement>) : !showOnHover) return;
 				tooltip.pointerMove(event.currentTarget);
 				return;
 			case "onPointerLeave":
@@ -295,11 +302,6 @@ export const TooltipAnchor = memo(function TooltipAnchor(props: TooltipAnchorPro
 		}
 	});
 
-	// A render that changes the anchor's own aria-describedby drops the tooltip id. Add it back.
-	useLayoutEffect(() => {
-		tooltip.syncDescription();
-	});
-
 	if (typeof render === "function") return render({ ...(merged as HTMLAttributes<HTMLElement>), ref: setRef });
 	if (renderElement) return createElement(renderElement.type, { ...merged, key: renderElement.key });
 	return createElement("div", merged);
@@ -333,6 +335,13 @@ export type TooltipProps = ComponentPropsWithRef<"div"> & {
 	 * @default true
 	 */
 	unmountOnHide?: boolean;
+	/**
+	 * Let the pointer move from the anchor into the tooltip, so its text can be selected or clicked.
+	 * With `false`, the tooltip and its gap let the pointer pass through to the page, and leaving the
+	 * anchor closes it. Ariakit has no single prop for this. The name comes from Tippy and Floating UI.
+	 * @default true
+	 */
+	interactive?: boolean;
 };
 
 /**
@@ -351,6 +360,7 @@ export const Tooltip = memo(function Tooltip(props: TooltipProps) {
 		portal: _portal,
 		gutter = 8,
 		unmountOnHide = true,
+		interactive = true,
 		onFocus,
 		onBlur,
 		...rest
@@ -393,11 +403,6 @@ export const Tooltip = memo(function Tooltip(props: TooltipProps) {
 		if (!event.defaultPrevented && event.target === event.currentTarget) tooltip.blur(event.relatedTarget);
 	};
 
-	// A new id must reach the anchor's aria-describedby.
-	useLayoutEffect(() => {
-		tooltip.syncDescription();
-	});
-
 	if (!open && unmountOnHide) return null;
 
 	const side = tooltip_side(placement);
@@ -410,6 +415,7 @@ export const Tooltip = memo(function Tooltip(props: TooltipProps) {
 			className={"np-TooltipPositioner" satisfies Tooltip_ClassNames}
 			data-side={side}
 			data-align={align}
+			data-interactive={interactive ? undefined : "false"}
 			style={
 				{
 					// The arrow reads both names: it points at the anchor and stays inside the positioner box.

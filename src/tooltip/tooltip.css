@@ -90,6 +90,14 @@
 		pointer-events: auto;
 	}
 
+	/* A tooltip with interactive={false} lets the pointer pass through to the page, gap strips included.
+	   Keep this rule after the one above: both have zero specificity, so the later one wins. */
+	:where(.np-TooltipPositioner[data-interactive="false"])::before,
+	:where(.np-TooltipPositioner[data-interactive="false"])::after,
+	:where(.np-TooltipPositioner[data-interactive="false"] > .np-Tooltip) {
+		pointer-events: none;
+	}
+
 	/* The content takes focus only from a click on its text. Do not draw a ring for it. */
 	:where(.np-Tooltip:focus) {
 		outline: none;

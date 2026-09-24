@@ -575,6 +575,45 @@ export const Hoverable: Story = {
 	),
 };
 
+export const NotInteractive: Story = {
+	render: () => (
+		// Like two Files tree rows: the tip under the first row must not catch the pointer on its way down.
+		<div className="story-column">
+			<TooltipProvider placement="bottom" timeout={0}>
+				<TooltipAnchor render={<button type="button">Row 1</button>} />
+				<Tooltip className="story-Tooltip" interactive={false}>
+					The pointer passes through this tooltip
+				</Tooltip>
+			</TooltipProvider>
+			<button type="button">Row 2</button>
+		</div>
+	),
+};
+
+export const ShowOnHover: Story = {
+	render: function Render() {
+		const [expanded, setExpanded] = useState(false);
+
+		return (
+			<div className="story-row">
+				{/* Like a menu button: skip hover while its menu is open. */}
+				<TooltipProvider placement="bottom" timeout={0}>
+					<TooltipAnchor
+						showOnHover={(event) => event.currentTarget.getAttribute("aria-expanded") !== "true"}
+						render={
+							<button type="button" aria-expanded={expanded} onClick={() => setExpanded((value) => !value)}>
+								Menu
+							</button>
+						}
+					/>
+					<Tooltip className="story-Tooltip">Open the menu</Tooltip>
+				</TooltipProvider>
+				<button type="button">Other</button>
+			</div>
+		);
+	},
+};
+
 export const ScrollContainer: Story = {
 	render: () => (
 		<div className="story-scroll" data-testid="scroller">
