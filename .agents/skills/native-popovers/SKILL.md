@@ -51,7 +51,7 @@ The arrow reads the content colors on each open. With no border, it reads a ring
 
 The components are one module, `src/tooltip/tooltip.tsx`, with a region per component (`context`, `provider`, `anchor`, `tooltip`, `arrow`). `tooltip.css` uses the same labels. Add new tooltip code to the matching region. Keep plain, React-free logic (controller, placement, layer stack) in its own file. Later menus should follow the same shape: one component module per widget, and no index barrel.
 
-`src/tooltip/tooltip-controller.ts` holds the state. It follows SybTooltipV3: a plain object made once per `TooltipProvider`, with `configure()` on each render. Only `Tooltip` and `TooltipArrow` subscribe. The anchor must not render on hover or focus. Keep that true when you add props, because it is the reason this layer is fast in long lists.
+`src/tooltip/tooltip-controller.ts` holds the state. It is a plain object made once per `TooltipProvider`, with `configure()` on each render. Only `Tooltip` and `TooltipArrow` subscribe. The anchor must not render on hover or focus. Keep that true when you add props, because it is the reason this layer is fast in long lists.
 
 Render only from the `useSyncExternalStore` snapshot (`{ open, placement }`, a new object on each change). Add a field there when a component needs new state. Never read the controller's mutable state during render: the React Compiler caches work on the stable controller object, so the read can go stale. Event handlers that read refs go through `useFn`, like the anchor's single `handleInternal`, because the compiler cannot tell that merged props are only called as handlers.
 

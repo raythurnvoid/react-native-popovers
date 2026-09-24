@@ -10,7 +10,7 @@ The Files sidebar in t3-chat mounts an Ariakit menu and several Ariakit tooltips
 
 A shared menu for the whole tree was considered and rejected. The goal is to replace the floating implementation under the existing `MyTooltip`, `MyMenu`, `MyPopover`, and `MyContextMenu` components. Call sites should keep the JSX they already have.
 
-SybTooltipV3 in syb-ui already tries native anchors. If the browser, the anchor, or the props are not a simple centered case, it falls back to `@floating-ui/dom`. That fallback is unfinished native wiring. It is not an old-browser requirement. This library does not copy that fallback.
+Some native-anchor tooltips fall back to `@floating-ui/dom` when the browser, the anchor, or the props are not a simple centered case. That fallback is unfinished native wiring. It is not an old-browser requirement. This library does not copy that fallback.
 
 ## Native only
 
@@ -64,7 +64,7 @@ Use `popover="manual"`. Open with `showPopover({ source })`. The popover top lay
 
 ## How it works
 
-The code follows SybTooltipV3's shape. `TooltipProvider` creates one plain controller (`src/tooltip/tooltip-controller.ts`) and puts it in context. The controller holds the open state, the timers, and the pointer and focus flags. Hover and focus change it without a React render.
+`TooltipProvider` creates one plain controller (`src/tooltip/tooltip-controller.ts`) and puts it in context. The controller holds the open state, the timers, and the pointer and focus flags. Hover and focus change it without a React render.
 
 - Only `Tooltip` (and `TooltipArrow` inside it) subscribes with `useSyncExternalStore`. The anchor and its parent never render during hover. This is the part that makes a long list of rows cheap.
 - `getSnapshot` returns a new `{ open, placement }` object on each change, and the components render only from it. Do not read the controller's mutable state during render: the React Compiler caches work on the stable controller object, so such a read can go stale.
@@ -246,7 +246,7 @@ A plain scroll with the pointer outside the list costs the same in all three: ro
 
 ## Tests
 
-Storybook runs on port `6116`. The app uses `5173`. syb-ui Storybook uses `6006`.
+Storybook runs on port `6116`. The app uses `5173`.
 
 ```sh
 vp env exec pnpm exec playwright test
