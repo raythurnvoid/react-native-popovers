@@ -128,7 +128,7 @@ const BUTTON_EVENT_NAMES = new Set(["onClick", "onKeyDown"]);
 
 /**
  * The keys that open a root menu from its button, and the item they make active. They follow the side
- * the menu opens on, like Ariakit.
+ * the menu opens on, like Ariakit. `left` and `right` are logical, so in RTL they swap.
  */
 const BUTTON_OPEN_KEYS: Record<string, Partial<Record<string, "keyboard-first" | "keyboard-last">>> = {
 	top: { ArrowDown: "keyboard-first", ArrowUp: "keyboard-last" },
@@ -170,8 +170,13 @@ export const MenuButton = memo(function MenuButton(props: MenuButtonProps) {
 		}
 
 		if (menu.isSubmenu) return;
-		const reason =
-			BUTTON_OPEN_KEYS[placement_side(menu.getSnapshot().placement)]?.[(event as KeyboardEvent<HTMLElement>).key];
+		let side = placement_side(menu.getSnapshot().placement);
+		// A `right` menu opens on the left in RTL, so the key toward it is ArrowLeft.
+		if (getComputedStyle(target).direction === "rtl") {
+			if (side === "right") side = "left";
+			else if (side === "left") side = "right";
+		}
+		const reason = BUTTON_OPEN_KEYS[side]?.[(event as KeyboardEvent<HTMLElement>).key];
 		if (!reason) return;
 		event.preventDefault();
 		menu.openFromButton(reason);
@@ -187,11 +192,11 @@ export const MenuButton = memo(function MenuButton(props: MenuButtonProps) {
 
 	const setRef = useFn((node: HTMLElement) => {
 		element.current = node;
-		menu.registerAnchor(node, null);
+		menu.registerButton(node, null);
 
 		return () => {
 			element.current = null;
-			menu.registerAnchor(null, node);
+			menu.registerButton(null, node);
 		};
 	});
 

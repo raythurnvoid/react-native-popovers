@@ -20,30 +20,32 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-type Point = { x: number; y: number };
+export type Point = { x: number; y: number };
 type Rect = { left: number; right: number; top: number; bottom: number };
 
 /**
- * How long the grace area lasts after the pointer leaves a submenu trigger (Radix).
+ * How long the grace area lasts after the pointer leaves a submenu item (Radix).
  */
 export const MENU_GRACE_TIMEOUT = 300;
 
 /**
- * Build the area the pointer may cross on its way from a submenu trigger into the open submenu. While the pointer is
- * inside it and moves toward `side`, other items of the parent menu ignore hover, so the submenu stays open.
+ * Build the area the pointer may cross on its way from a submenu item into its open submenu. While
+ * the pointer is inside it and moves toward `side`, other items of the parent menu ignore hover, so
+ * the submenu stays open.
  *
- * `apex` is the last pointer point seen on the trigger. The polygon goes from that point, pulled 5px back toward the
- * trigger so it stays inside, to the four corners of the submenu.
+ * `apex` is the last pointer point seen on the submenu item. The polygon goes from that point,
+ * pulled 5px back toward the item so it stays inside, to the four corners of the submenu.
  *
- * Radix reads the side from `data-side`. Here it comes from the two rects, because a CSS `position-try` fallback can
- * move the submenu to the other side and JS cannot read which fallback won. Returns null when the submenu is on
- * neither side of the trigger (it overlaps it), so there is no direction to protect.
+ * Radix reads the side from `data-side`. Here it comes from the two rects, because a CSS
+ * `position-try` fallback can move the submenu to the other side, and JS cannot read which fallback
+ * won. Returns null when the submenu is on neither side of the item (it overlaps it), so there is
+ * no direction to protect.
  */
-export function menu_grace_area(apex: Point, triggerRect: Rect, submenuRect: Rect) {
+export function menu_grace_area(apex: Point, itemRect: Rect, submenuRect: Rect) {
 	let side: "left" | "right";
-	if (submenuRect.left >= triggerRect.right - 1) {
+	if (submenuRect.left >= itemRect.right - 1) {
 		side = "right";
-	} else if (submenuRect.right <= triggerRect.left + 1) {
+	} else if (submenuRect.right <= itemRect.left + 1) {
 		side = "left";
 	} else {
 		return null;

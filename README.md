@@ -178,6 +178,8 @@ Checked with Playwright's Chromium 153, WebKit 26.6, and Firefox 155. Chromium p
 - WebKit's Tab skips links by default, like Safari. The link test focuses the link directly there.
 - Firefox anchor positioning ignores a `transform` on an ancestor of the anchor ([mozilla/standards-positions#1302](https://github.com/mozilla/standards-positions/issues/1302)). A menu anchored to an element inside a transformed container, like a virtualized row, lands where the element would be without the transform. The pointer anchor of a context menu is in `body`, so a right click is fine.
 
+The touch test runs in Chromium only. That is a test tool limit (Playwright sends touch moves through CDP), not a browser gap.
+
 Only Chromium sends a `contextmenu` event after Shift+F10 or the ContextMenu key. It has `button` -1 and goes to the focused element. The context menu trigger opens like the key for it, and an open menu prevents it, so the browser menu does not open on top.
 
 Safari does not focus a button, checkbox, or radio on click unless it has an explicit `tabIndex`. Like Ariakit's `Focusable`, the anchor sets `tabIndex={0}` on those elements in Safari. Without it, a click would not focus the anchor, so the next key press could not open the tip. `PopoverDisclosure` does the same.
@@ -262,20 +264,22 @@ Pure helpers have unit tests: `menu-typeahead.ts` (Ariakit's typeahead rule) and
 
 Ariakit is the behavior reference, with the changes listed below. These are checked in `e2e/menu.spec.ts`:
 
-- A click on the button opens the menu with focus on it and no active item. Enter, Space, and ArrowDown open it with the first item active. ArrowUp opens it with the last one. The open keys follow the placement: a `right-start` button opens with ArrowRight.
+- A click on the button opens the menu with focus on it and no active item. Enter, Space, and ArrowDown open it with the first item active. ArrowUp opens it with the last one. The open keys follow the placement: a `right-start` button opens with ArrowRight (ArrowLeft in RTL, where it opens on the left).
 - A second click closes. The button click never closes and reopens.
 - Arrow keys, Home, End, PageUp, and PageDown move the active item. They do not loop, and they skip disabled items. Keys in a long menu never scroll the page.
 - Typeahead: letters and digits move to the next item that starts with them. Accents are ignored. A repeated letter cycles. The search resets after 500 ms. Disabled items never match.
 - Enter (on keydown), Space (on keyup), and a click run the item and close every level. Focus goes back to the root button. `hideOnClick={false}` keeps the menu open. A checkbox item toggles `aria-checked` and stays open. A disabled item does nothing. Ctrl, Cmd, or Alt+click on a link item keeps the menu open.
 - Escape closes one level. Focus goes to the parent menu, with the submenu item active, or to the button.
-- Tab closes and moves focus past the button. Shift+Tab moves focus to the button and keeps the menu open.
+- Tab closes and moves focus past the button. It also closes when focus lands on a button inside a context menu trigger row, which Chromium and WebKit put right after the menu. Shift+Tab moves focus to the button and keeps the menu open.
 - An outside click closes every level, and focus stays where the user clicked. A right click or a focus move outside closes it too.
 - Hover moves the active item. A touch never hovers: a tap is a click. Hover does not scroll the menu. A pointer on the padding clears the active item.
 - A press on the menu padding keeps DOM focus on the menu.
+- A text field inside the menu keeps focus and its own keys. Hover on its own level does not take focus from it. Hover in a submenu moves focus there, so the submenu keys work. Escape still closes the menu, and a submenu that closes leaves focus in the field. A checkbox, radio, or button input is not a text field, and neither is an editor root around the whole menu.
 - Submenus: ArrowRight or Enter on a submenu item opens it with the first item active. ArrowLeft closes it. In RTL the arrows swap. Hover opens it after 150 ms, and focus stays in the parent. A click opens it at once and never closes it.
 - A diagonal move from the submenu item toward the submenu keeps it open, even across other items: for 300 ms, other items ignore the pointer while it moves inside the grace area toward the submenu. The grace area also works when the submenu flipped.
 - Leaving closes a submenu: when the pointer moves onto another item of the same level, not toward the submenu or after the 300 ms grace, the submenu closes. Moving the pointer off every menu keeps it open.
-- One open submenu per level. A scroll of a level closes its submenu. A click on a level outside its items closes its submenu.
+- One open submenu per level. A scroll of a level closes its submenu and stops a pending hover open. A click on a level outside its items closes its submenu. A submenu that stops rendering while open closes like Escape, and focus goes to its parent.
+- Replacing the button element while the menu is open keeps the menu open.
 - Context menu: a right click opens the menu at the pointer, focused, with no active item. Shift+F10 and the ContextMenu key open it at the focused element inside the trigger, with the first item active. Near the viewport edges it flips and stays inside. A second right click moves the open menu. Shift+right click keeps the browser menu. The window losing focus closes it. Focus goes back to the trigger.
 - A tooltip on an item closes first on Escape. An item that opens a native `<dialog>` or an Ariakit dialog closes the menu first, and the dialog returns focus to the button. Inside a modal dialog, Escape closes the menu first and the dialog stays open.
 - Placement and offsets match Ariakit within 0.5px for the placements the app uses. Every placement lands on its side.
@@ -290,6 +294,8 @@ Ariakit is the behavior reference, with the changes listed below. These are chec
 - The context menu opens exactly at the pointer, and a `bottom-end` menu lines up exactly with the button's end edge.
 - The pointer anchor is a 0×0 `position: fixed` span in `body`, not `getAnchorRect`. A transformed row cannot move it.
 - The menu keeps its DOM parent, so it inherits text styles from there. Give the content its own font and color.
+- For the same reason, its key events bubble through the trigger's DOM ancestors. Inside a widget that reads keys on its own element (Headless Tree does) or allows only some child roles (a tree, a tablist), render the `Menu` with a React portal into an element outside that widget.
+- The keys skip hidden items (`display: none`). Ariakit can make a hidden item active.
 - No `store`, `virtualFocus`, `getAnchorRect`, radio items, menubar, modal menu, or long press for touch.
 
 ## Performance

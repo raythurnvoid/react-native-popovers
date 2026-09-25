@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+type Point = { x: number; y: number };
+
 async function openStory(page: Page, id: string) {
 	await page.goto(`/iframe.html?id=menu--${id}&viewMode=story`);
 	await expect(page.locator("#storybook-root").getByRole("button").first()).toBeVisible();
@@ -72,6 +74,126 @@ async function toggles(page: Page) {
 	return page.evaluate(() => (window as unknown as { toggles: string[] }).toggles);
 }
 
+/**
+ * Open the block menu with a click. Its button sits at the left, so the submenus open to the right.
+ */
+async function openBlockMenu(page: Page, story = "submenu") {
+	await openStory(page, story);
+	await button(page, "Block menu").click();
+	await expect(menu(page, "Block menu")).toBeFocused();
+}
+
+async function pressAll(page: Page, keys: string[]) {
+	for (const key of keys) await page.keyboard.press(key);
+}
+
+/**
+ * Remember every item that ever gets `data-active-item`, so a test can prove an item was never active.
+ */
+async function recordActive(page: Page) {
+	await page.evaluate(() => {
+		const names: string[] = [];
+		(window as unknown as { activated: string[] }).activated = names;
+		new MutationObserver((records) => {
+			for (const record of records) {
+				const target = record.target as HTMLElement;
+				if (target.hasAttribute("data-active-item")) names.push(target.textContent?.trim() ?? "");
+			}
+		}).observe(document.body, { attributes: true, attributeFilter: ["data-active-item"], subtree: true });
+	});
+}
+
+async function activated(page: Page) {
+	return page.evaluate(() => (window as unknown as { activated: string[] }).activated);
+}
+
+/**
+ * Hover an item and let the 150 ms hover delay pass on the paused fake clock.
+ */
+async function hoverOpen(page: Page, name: string) {
+	const point = await center(item(page, name));
+	await page.mouse.move(point.x, point.y, { steps: 4 });
+	await page.clock.runFor(151);
+	await expect(menu(page, name)).toBeVisible();
+}
+
+/**
+ * The items of a menu that a straight move from `start` to `end` in `steps` steps crosses. A test
+ * uses it to prove that its path really crosses another item.
+ */
+async function crossedItems(page: Page, start: Point, end: Point, steps: number) {
+	return page.evaluate(
+		({ start, end, steps }) => {
+			const names = new Set<string>();
+			for (let step = 1; step <= steps; step += 1) {
+				const x = start.x + ((end.x - start.x) * step) / steps;
+				const y = start.y + ((end.y - start.y) * step) / steps;
+				const hit = document.elementFromPoint(x, y)?.closest('[role="menuitem"]');
+				if (hit) names.add(hit.textContent?.trim() ?? "");
+			}
+			return [...names];
+		},
+		{ start, end, steps },
+	);
+}
+
+/**
+ * With the "Color" submenu open, move down and right onto "Copy link", near its right edge. The
+ * point is inside the grace area. Returns where the pointer stopped.
+ */
+async function moveIntoGrace(page: Page) {
+	const trigger = await box(item(page, "Color ›"));
+	const copyLink = await box(item(page, "Copy link"));
+	const stop = { x: trigger.x + trigger.width - 4, y: copyLink.y + copyLink.height / 2 };
+	await page.mouse.move(trigger.x + trigger.width - 12, trigger.y + trigger.height / 2);
+	await page.mouse.move(stop.x, stop.y, { steps: 6 });
+	await expect(menu(page, "Color ›")).toBeVisible();
+	return stop;
+}
+
+function row(page: Page, name: string) {
+	return page.getByRole("treeitem", { name, exact: true });
+}
+
+async function openContextStory(page: Page) {
+	await page.goto("/iframe.html?id=menu--context-menu&viewMode=story");
+	await expect(row(page, "alpha")).toBeVisible();
+}
+
+/**
+ * Send the contextmenu event Chromium sends to the focused element after Shift+F10 or the
+ * ContextMenu key: `button` -1, at a position that is not the pointer. Firefox and WebKit send none
+ * for a key in tests. Returns whether a handler prevented the browser's own menu.
+ */
+async function sendKeyContextMenu(page: Page) {
+	return page.evaluate(() => {
+		const event = new PointerEvent("contextmenu", {
+			button: -1,
+			clientX: 500,
+			clientY: 500,
+			bubbles: true,
+			cancelable: true,
+		});
+		document.activeElement!.dispatchEvent(event);
+		return event.defaultPrevented;
+	});
+}
+
+/**
+ * Record whether each contextmenu event kept the browser's own menu from opening.
+ */
+async function recordContextMenus(page: Page) {
+	await page.evaluate(() => {
+		const prevented: boolean[] = [];
+		(window as unknown as { contextMenus: boolean[] }).contextMenus = prevented;
+		window.addEventListener("contextmenu", (event) => prevented.push(event.defaultPrevented));
+	});
+}
+
+async function contextMenus(page: Page) {
+	return page.evaluate(() => (window as unknown as { contextMenus: boolean[] }).contextMenus);
+}
+
 // #region roles
 test("button, menu, and items get the WAI-ARIA menu roles and states", async ({ page }) => {
 	await openStory(page, "basic");
@@ -140,6 +262,16 @@ for (const [key, expected] of [
 		expect(await active(page)).toBe(expected);
 	});
 }
+
+test("a right-start menu opens from its button with ArrowRight, not ArrowDown", async ({ page }) => {
+	await openStory(page, "submenu");
+	await button(page, "Block menu").focus();
+	await page.keyboard.press("ArrowDown");
+	await expect(menu(page, "Block menu")).toBeHidden();
+	await page.keyboard.press("ArrowRight");
+	await expect(menu(page, "Block menu")).toBeFocused();
+	expect(await active(page)).toBe("Delete");
+});
 
 test("the button click never closes and reopens: one open, one close", async ({ page }) => {
 	await openStory(page, "basic");
@@ -237,6 +369,11 @@ test("arrows, Home, End, and PageDown move the active item, skip disabled items,
 		["ArrowUp", "Upload file"],
 		["PageDown", "Show archived items"],
 		["PageUp", "Upload file"],
+		["End", "Show archived items"],
+		["ArrowUp", "Keep open"],
+		["ArrowUp", "Éclair recipe"],
+		// "Paste into root folder" is disabled.
+		["ArrowUp", "Copy"],
 	];
 	for (const [key, expected] of steps) {
 		await page.keyboard.press(key);
@@ -271,6 +408,11 @@ test("typeahead: the same letter cycles and wraps, more letters narrow, accents 
 	await page.clock.runFor(501);
 	await page.keyboard.press("e");
 	expect(await active(page)).toBe("Éclair recipe");
+
+	// "c" alone matches "Cut" first. "co" only matches "Copy".
+	await page.clock.runFor(501);
+	await page.keyboard.type("co");
+	expect(await active(page)).toBe("Copy");
 });
 
 test("typeahead: the search resets after 500 ms", async ({ page }) => {
@@ -281,14 +423,18 @@ test("typeahead: the search resets after 500 ms", async ({ page }) => {
 	await page.keyboard.press("u");
 	expect(await active(page)).toBe("Upload file");
 
-	// Within 500 ms, "c" joins the search ("uc"), which matches nothing.
-	await page.clock.runFor(499);
-	await page.keyboard.press("c");
-	expect(await active(page)).toBe("Upload file");
-
+	// After 500 ms, "c" starts a new search. Without the reset, "uc" would match nothing.
 	await page.clock.runFor(501);
 	await page.keyboard.press("c");
 	expect(await active(page)).toBe("Cut");
+
+	// Within 500 ms, "c" joins the search ("sc"), which matches nothing.
+	await page.clock.runFor(501);
+	await page.keyboard.press("s");
+	expect(await active(page)).toBe("Show archived items");
+	await page.clock.runFor(499);
+	await page.keyboard.press("c");
+	expect(await active(page)).toBe("Show archived items");
 });
 
 test("Space inside a running search is a character, not a click", async ({ page }) => {
@@ -334,6 +480,20 @@ for (const how of ["click", "Enter", "Space"] as const) {
 	});
 }
 
+test("Space runs the item on keyup, not on keydown", async ({ page }) => {
+	await openStory(page, "basic");
+	await button(page, "Actions").click();
+	await page.keyboard.press("ArrowDown");
+	await page.keyboard.press("ArrowDown");
+	await page.keyboard.down("Space");
+	await expect(menu(page, "Actions")).toBeVisible();
+	expect(await log(page)).toBe("open");
+
+	await page.keyboard.up("Space");
+	await expect(menu(page, "Actions")).toBeHidden();
+	expect(await log(page)).toBe("open,Cut,closed");
+});
+
 test("hideOnClick false runs the item and keeps the menu open", async ({ page }) => {
 	await openStory(page, "basic");
 	await button(page, "Actions").click();
@@ -341,6 +501,12 @@ test("hideOnClick false runs the item and keeps the menu open", async ({ page })
 	await expect(menu(page, "Actions")).toBeVisible();
 	await expect(menu(page, "Actions")).toBeFocused();
 	expect(await log(page)).toBe("open,Keep open");
+
+	// The click left "Keep open" active. Enter runs it again, and the menu still stays open.
+	expect(await active(page)).toBe("Keep open");
+	await page.keyboard.press("Enter");
+	await expect(menu(page, "Actions")).toBeFocused();
+	expect(await log(page)).toBe("open,Keep open,Keep open");
 });
 
 test("a disabled item ignores clicks and hover", async ({ page }) => {
@@ -351,8 +517,13 @@ test("a disabled item ignores clicks and hover", async ({ page }) => {
 	await expect(menu(page, "Actions")).toBeVisible();
 	expect(await log(page)).toBe("open");
 
+	// Make "Copy" active first, so a hover that made the disabled item active would show.
+	await item(page, "Copy").hover();
+	expect(await active(page)).toBe("Copy");
+	await recordActive(page);
 	await item(page, "Paste into root folder").hover({ force: true });
-	expect(await active(page)).toBeNull();
+	expect(await activated(page)).toEqual([]);
+	expect(await active(page)).not.toBe("Paste into root folder");
 });
 
 test("a checkbox item toggles aria-checked and stays open, by click and by Enter", async ({ page }) => {
@@ -385,9 +556,108 @@ test("a modifier click on a link item keeps the menu open", async ({ page, brows
 	await button(page, "Chat").click();
 	// Stop the navigation, so this checks only the menu.
 	await page.evaluate(() => document.addEventListener("click", (event) => event.preventDefault()));
-	const modifier = browserName === "webkit" ? "Meta" : "Control";
-	await item(page, "Open chat").click({ modifiers: [modifier] });
-	await expect(menu(page, "Chat")).toBeVisible();
+	// Ctrl or Cmd opens a new tab. Alt downloads.
+	for (const modifier of [browserName === "webkit" ? "Meta" : "Control", "Alt"] as const) {
+		await item(page, "Open chat").click({ modifiers: [modifier] });
+		await expect(menu(page, "Chat"), modifier).toBeVisible();
+	}
+});
+
+test("a modifier click on an item that is not a link runs it and closes the menu", async ({ page, browserName }) => {
+	await openStory(page, "basic");
+	for (const modifier of [browserName === "webkit" ? "Meta" : "Control", "Alt"] as const) {
+		await button(page, "Actions").click();
+		await item(page, "Cut").click({ modifiers: [modifier] });
+		await expect(menu(page, "Actions"), modifier).toBeHidden();
+	}
+	expect(await log(page)).toBe("open,Cut,closed,open,Cut,closed");
+});
+
+test("a text field inside the menu keeps focus and its own keys; Escape still closes the menu", async ({ page }) => {
+	await openStory(page, "text-field");
+	await button(page, "Filter").click();
+	const field = page.getByRole("textbox", { name: "Filter text" });
+	await field.click();
+	await expect(field).toBeFocused();
+
+	// Letters, Space, and the arrow keys edit the text. None of them moves the active item.
+	await page.keyboard.type("ab c");
+	await page.keyboard.press("ArrowDown");
+	await page.keyboard.press("ArrowUp");
+	await page.keyboard.press("Home");
+	await expect(field).toHaveValue("ab c");
+	await expect(menu(page, "Filter")).not.toHaveAttribute("aria-activedescendant");
+
+	// Hover makes an item active but leaves focus in the field.
+	await item(page, "Banana").hover();
+	await expect(field).toBeFocused();
+	await page.keyboard.type("x");
+	await expect(field).toHaveValue("xab c");
+
+	await page.keyboard.press("Escape");
+	await expect(menu(page, "Filter")).toBeHidden();
+	await expect(button(page, "Filter")).toBeFocused();
+});
+
+test("a submenu that closes leaves focus in a text field of its parent", async ({ page }) => {
+	await openStory(page, "text-field");
+	await button(page, "Filter").click();
+	const field = page.getByRole("textbox", { name: "Filter text" });
+	await field.click();
+	await page.keyboard.type("ab");
+	await item(page, "More ›").hover();
+	await expect(menu(page, "More ›")).toBeVisible();
+	await expect(field).toBeFocused();
+
+	// Escape closes only the submenu. The user goes on typing in the field.
+	await page.keyboard.press("Escape");
+	await expect(menu(page, "More ›")).toBeHidden();
+	await expect(menu(page, "Filter")).toBeVisible();
+	await expect(field).toBeFocused();
+	await page.keyboard.type("c");
+	await expect(field).toHaveValue("abc");
+});
+
+test("a checkbox input in the menu does not take the menu keys", async ({ page }) => {
+	await openStory(page, "text-field");
+	await button(page, "Filter").click();
+	const checkbox = page.getByRole("checkbox", { name: "Match case" });
+	await checkbox.click();
+	await expect(checkbox).toBeChecked();
+	await expect(menu(page, "Filter")).toBeFocused();
+	await page.keyboard.press("ArrowDown");
+	expect(await active(page)).toBe("Apple");
+});
+
+test("a menu inside an editable root still gets its keys", async ({ page }) => {
+	await openStory(page, "text-field");
+	await button(page, "Node").click();
+	await expect(menu(page, "Node")).toBeFocused();
+	await page.keyboard.press("ArrowDown");
+	expect(await active(page)).toBe("Delete node");
+	await page.keyboard.press("ArrowDown");
+	expect(await active(page)).toBe("Duplicate node");
+});
+
+test("replacing the button element while the menu is open keeps the menu open and named", async ({ page }) => {
+	await openStory(page, "replaced-button");
+	await button(page, "Button 0").click();
+	await recordToggles(page);
+	await item(page, "Replace button").click();
+	await expect(button(page, "Button 1")).toHaveAttribute("aria-expanded", "true");
+	await expect(menu(page, "Button 1")).toBeVisible();
+	expect(await toggles(page)).toEqual([]);
+
+	await page.keyboard.press("Escape");
+	await expect(menu(page, "Button 1")).toBeHidden();
+	await expect(button(page, "Button 1")).toBeFocused();
+});
+
+test("a menu with its own aria-labelledby keeps it", async ({ page }) => {
+	await openStory(page, "replaced-button");
+	await button(page, "Recent").click();
+	await expect(menu(page, "Recent files")).toBeFocused();
+	await expect(menu(page, "Recent files")).toHaveAttribute("aria-labelledby", "story-own-label");
 });
 // #endregion items
 
@@ -406,8 +676,14 @@ test("hover does not scroll the menu; a key does", async ({ page }) => {
 	await openStory(page, "long-list");
 	await button(page, "Colors").click();
 	const scroller = page.locator(".story-scroll");
-	const last = await box(item(page, "Color 5"));
-	await page.mouse.move(last.x + 10, last.y + last.height - 2, { steps: 4 });
+	// "Color 7" is cut off by the scroller's bottom edge. Hover its visible top part: scrolling it
+	// into view would move the list.
+	const clipped = await box(item(page, "Color 7"));
+	const scrollerBox = await box(scroller);
+	const bottom = scrollerBox.y + scrollerBox.height;
+	expect(clipped.y + clipped.height).toBeGreaterThan(bottom);
+	await page.mouse.move(clipped.x + 10, (clipped.y + bottom) / 2, { steps: 4 });
+	expect(await active(page)).toBe("Color 7");
 	expect(await scroller.evaluate((node) => node.scrollTop)).toBe(0);
 
 	await page.keyboard.press("End");
@@ -419,12 +695,16 @@ test("hover does not scroll the menu; a key does", async ({ page }) => {
 test("a press on the menu padding keeps focus on the menu and the menu open", async ({ page }) => {
 	await openStory(page, "long-list");
 	await button(page, "Colors").click();
+	await item(page, "Color 3").hover();
+	expect(await active(page)).toBe("Color 3");
+
 	// The left padding at mid height. A corner would be outside the rounded border.
 	const content = await box(menu(page, "Colors"));
 	await page.mouse.click(content.x + 2, content.y + content.height / 2);
 	await expect(menu(page, "Colors")).toBeFocused();
 
 	// The pointer on the padding cleared the active item, like Ariakit. The keys still work.
+	expect(await active(page)).toBeNull();
 	await page.keyboard.press("ArrowDown");
 	expect(await active(page)).toBe("Color 1");
 });
@@ -489,52 +769,38 @@ test("StrictMode controlled open from the parent state", async ({ page }) => {
 	// The parent opened it, so setOpen never ran.
 	expect(await log(page)).toBe("");
 });
+
+test("a controlled parent can refuse: setOpen runs, and the menu stays closed", async ({ page }) => {
+	await openStory(page, "strict-controlled");
+	await recordToggles(page);
+	await button(page, "Locked").click();
+	await expect(button(page, "Locked")).toBeFocused();
+	await page.keyboard.press("ArrowDown");
+	expect(await log(page)).toBe("asked open,asked open");
+	await expect(button(page, "Locked")).toHaveAttribute("aria-expanded", "false");
+	expect(await toggles(page)).toEqual([]);
+});
+
+test("a controlled parent can refuse a close: Escape, an item click, and an outside click ask, and it stays open", async ({
+	page,
+}) => {
+	await openStory(page, "strict-controlled");
+	await button(page, "Sticky").click();
+	await expect(menu(page, "Sticky")).toBeFocused();
+	await recordToggles(page);
+
+	await page.keyboard.press("Escape");
+	await item(page, "Stay").click();
+	const content = await box(menu(page, "Sticky"));
+	await page.mouse.click(content.x + content.width + 200, content.y + content.height + 100);
+	expect(await log(page)).toBe("sticky open,sticky asked closed,sticky asked closed,sticky asked closed");
+	await expect(menu(page, "Sticky")).toBeVisible();
+	await expect(button(page, "Sticky")).toHaveAttribute("aria-expanded", "true");
+	expect(await toggles(page)).toEqual([]);
+});
 // #endregion controlled
 
 // #region submenus
-/**
- * Open the block menu with a click. Its button sits at the left, so the submenus open to the right.
- */
-async function openBlockMenu(page: Page, story = "submenu") {
-	await openStory(page, story);
-	await button(page, "Block menu").click();
-	await expect(menu(page, "Block menu")).toBeFocused();
-}
-
-async function pressAll(page: Page, keys: string[]) {
-	for (const key of keys) await page.keyboard.press(key);
-}
-
-/**
- * Remember every item that ever gets `data-active-item`, so a test can prove an item was never active.
- */
-async function recordActive(page: Page) {
-	await page.evaluate(() => {
-		const names: string[] = [];
-		(window as unknown as { activated: string[] }).activated = names;
-		new MutationObserver((records) => {
-			for (const record of records) {
-				const target = record.target as HTMLElement;
-				if (target.hasAttribute("data-active-item")) names.push(target.textContent?.trim() ?? "");
-			}
-		}).observe(document.body, { attributes: true, attributeFilter: ["data-active-item"], subtree: true });
-	});
-}
-
-async function activated(page: Page) {
-	return page.evaluate(() => (window as unknown as { activated: string[] }).activated);
-}
-
-/**
- * Hover an item and let the 150 ms hover delay pass on the paused fake clock.
- */
-async function hoverOpen(page: Page, name: string) {
-	const point = await center(item(page, name));
-	await page.mouse.move(point.x, point.y, { steps: 4 });
-	await page.clock.runFor(151);
-	await expect(menu(page, name)).toBeVisible();
-}
-
 test("ArrowRight and Enter open a submenu with its first item active; ArrowLeft closes it", async ({ page }) => {
 	await openBlockMenu(page);
 	await pressAll(page, ["ArrowDown", "ArrowDown", "ArrowDown"]);
@@ -602,6 +868,16 @@ test("RTL: ArrowLeft opens a submenu, ArrowRight closes it", async ({ page }) =>
 	await expect(menu(page, "Block menu")).toBeFocused();
 });
 
+test("RTL: a right-start menu opens on the left, so its button opens it with ArrowLeft", async ({ page }) => {
+	await openStory(page, "submenu-rtl");
+	await button(page, "Block menu").focus();
+	await page.keyboard.press("ArrowRight");
+	await expect(menu(page, "Block menu")).toBeHidden();
+	await page.keyboard.press("ArrowLeft");
+	await expect(menu(page, "Block menu")).toBeFocused();
+	expect(await active(page)).toBe("Delete");
+});
+
 test("RTL: a right-start menu and its submenu open on the left, with the same gutter and shift", async ({
 	page,
 	browserName,
@@ -622,6 +898,34 @@ test("RTL: a right-start menu and its submenu open on the left, with the same gu
 	const submenu = await box(menu(page, "Turn into ›"));
 	expect(Math.abs(parent.x - (submenu.x + submenu.width) - 8)).toBeLessThanOrEqual(0.5);
 	expect(Math.abs(submenu.y - parent.y + 5)).toBeLessThanOrEqual(0.5);
+});
+
+test("RTL: a diagonal move across other items toward a submenu on the left keeps it open", async ({
+	page,
+	browserName,
+}) => {
+	test.skip(
+		browserName === "firefox",
+		"Firefox places RTL self-* position areas on the wrong side (README browser notes)",
+	);
+	await page.clock.install();
+	await openBlockMenu(page, "submenu-rtl");
+	await pauseClock(page);
+	await hoverOpen(page, "Color ›");
+	await recordActive(page);
+
+	const trigger = await box(item(page, "Color ›"));
+	const submenu = await box(menu(page, "Color ›"));
+	const start = { x: trigger.x + 10, y: trigger.y + trigger.height / 2 };
+	const end = { x: submenu.x + submenu.width - 20, y: submenu.y + submenu.height - 20 };
+	const steps = 20;
+	expect(await crossedItems(page, start, end, steps)).toContain("Copy link");
+
+	await page.mouse.move(start.x, start.y);
+	await page.mouse.move(end.x, end.y, { steps });
+	await expect(menu(page, "Color ›")).toBeVisible();
+	expect(await activated(page)).not.toContain("Copy link");
+	await expect(menu(page, "Color ›")).toBeFocused();
 });
 
 test("a submenu opens beside its item with gutter 8 and shift -5", async ({ page }) => {
@@ -689,19 +993,7 @@ test("a diagonal move across other items toward the submenu keeps it open", asyn
 	const steps = 20;
 
 	// Prove the path really crosses another item of the parent menu.
-	const crossed = await page.evaluate(
-		({ start, end, steps }) => {
-			const names = new Set<string>();
-			for (let step = 1; step <= steps; step += 1) {
-				const x = start.x + ((end.x - start.x) * step) / steps;
-				const y = start.y + ((end.y - start.y) * step) / steps;
-				const hit = document.elementFromPoint(x, y)?.closest('[role="menuitem"]');
-				if (hit) names.add(hit.textContent?.trim() ?? "");
-			}
-			return [...names];
-		},
-		{ start, end, steps },
-	);
+	const crossed = await crossedItems(page, start, end, steps);
 	expect(crossed).toContain("Copy link");
 
 	await page.mouse.move(start.x, start.y);
@@ -728,19 +1020,7 @@ test("a flipped submenu: the grace area follows it up, and a crossed submenu ite
 	const start = { x: trigger.x + trigger.width - 10, y: trigger.y + trigger.height / 2 };
 	const end = { x: submenu.x + 20, y: submenu.y + 20 };
 	const steps = 20;
-	const crossed = await page.evaluate(
-		({ start, end, steps }) => {
-			const names = new Set<string>();
-			for (let step = 1; step <= steps; step += 1) {
-				const x = start.x + ((end.x - start.x) * step) / steps;
-				const y = start.y + ((end.y - start.y) * step) / steps;
-				const hit = document.elementFromPoint(x, y)?.closest('[role="menuitem"]');
-				if (hit) names.add(hit.textContent?.trim() ?? "");
-			}
-			return [...names];
-		},
-		{ start, end, steps },
-	);
+	const crossed = await crossedItems(page, start, end, steps);
 	expect(crossed).toContain("Turn into ›");
 
 	await page.mouse.move(start.x, start.y);
@@ -767,16 +1047,28 @@ test("the grace area ends after 300 ms: the next move onto another item closes t
 	await openBlockMenu(page);
 	await pauseClock(page);
 	await hoverOpen(page, "Color ›");
-	const trigger = await box(item(page, "Color ›"));
-	const copyLink = await box(item(page, "Copy link"));
-	// Down and right, onto "Copy link" near its right edge, inside the grace area.
-	const stop = { x: trigger.x + trigger.width - 4, y: copyLink.y + copyLink.height / 2 };
-	await page.mouse.move(trigger.x + trigger.width - 12, trigger.y + trigger.height / 2);
-	await page.mouse.move(stop.x, stop.y, { steps: 6 });
+	const stop = await moveIntoGrace(page);
+
+	// Still inside the 300 ms: a move toward the submenu keeps it open.
+	await page.clock.runFor(299);
+	await page.mouse.move(stop.x + 1, stop.y);
 	await expect(menu(page, "Color ›")).toBeVisible();
 
-	await page.clock.runFor(301);
-	await page.mouse.move(stop.x + 1, stop.y);
+	await page.clock.runFor(2);
+	await page.mouse.move(stop.x + 2, stop.y);
+	await expect(menu(page, "Color ›")).toBeHidden();
+	expect(await active(page)).toBe("Copy link");
+});
+
+test("a move away from the submenu inside the grace area closes it", async ({ page }) => {
+	await page.clock.install();
+	await openBlockMenu(page);
+	await pauseClock(page);
+	await hoverOpen(page, "Color ›");
+	const stop = await moveIntoGrace(page);
+
+	// 3px to the left stays inside the grace polygon, but moves away from the submenu.
+	await page.mouse.move(stop.x - 3, stop.y);
 	await expect(menu(page, "Color ›")).toBeHidden();
 	expect(await active(page)).toBe("Copy link");
 });
@@ -788,11 +1080,41 @@ test("moving the pointer off every menu keeps the submenu open", async ({ page }
 	await hoverOpen(page, "Turn into ›");
 	const submenu = await box(menu(page, "Turn into ›"));
 	await page.mouse.move(submenu.x + submenu.width + 200, submenu.y + 20, { steps: 6 });
+	// No timer closes it later either.
+	await page.clock.runFor(1000);
 	await expect(menu(page, "Turn into ›")).toBeVisible();
 });
 
-test("a click on a submenu item opens it at once; a second click keeps it open", async ({ page }) => {
+test("a pointer that leaves the menu and comes back onto another item starts no grace area", async ({ page }) => {
+	await page.clock.install();
 	await openBlockMenu(page);
+	await pauseClock(page);
+	await hoverOpen(page, "Color ›");
+	const trigger = await box(item(page, "Color ›"));
+	const parent = await box(menu(page, "Block menu"));
+	// "Move up" is the lowest item that the scroll area does not clip.
+	const moveUp = await box(item(page, "Move up"));
+	const right = trigger.x + trigger.width;
+
+	// Out to the right, into the 3px gap between the parent border and the submenu, then down and
+	// around below the parent. No other item is crossed on the way.
+	const gapX = (parent.x + parent.width + right + 8) / 2;
+	await page.mouse.move(gapX, trigger.y + trigger.height / 2, { steps: 4 });
+	await page.mouse.move(gapX, parent.y + parent.height + 20, { steps: 4 });
+	await page.mouse.move(right - 40, parent.y + parent.height + 20, { steps: 4 });
+	await expect(menu(page, "Color ›")).toBeVisible();
+
+	// One move up and right, onto "Move up", to a point an old grace area would cover.
+	await page.mouse.move(right - 4, moveUp.y + moveUp.height / 2);
+	await expect(menu(page, "Color ›")).toBeHidden();
+	expect(await active(page)).toBe("Move up");
+});
+
+test("a click on a submenu item opens it at once; a second click keeps it open", async ({ page }) => {
+	await page.clock.install();
+	await openBlockMenu(page);
+	// The clock is paused, so the 150 ms hover delay of the click's own pointer move never ends.
+	await pauseClock(page);
 	await item(page, "Turn into ›").click();
 	await expect(menu(page, "Turn into ›")).toBeVisible();
 	await item(page, "Turn into ›").click();
@@ -828,6 +1150,19 @@ test("an outside click closes every level and leaves focus on the clicked elemen
 	await expect(page.getByRole("textbox", { name: "Outside input" })).toBeFocused();
 });
 
+test("an outside click on a spot that cannot take focus closes every level, and focus goes nowhere", async ({
+	page,
+}) => {
+	await openBlockMenu(page);
+	await pressAll(page, ["ArrowDown", "ArrowDown", "ArrowDown", "ArrowRight"]);
+	await expect(menu(page, "Turn into ›")).toBeFocused();
+	// The top right corner of the page is empty.
+	await page.mouse.click(page.viewportSize()!.width - 10, 10);
+	await expect(menu(page, "Turn into ›")).toBeHidden();
+	await expect(menu(page, "Block menu")).toBeHidden();
+	expect(await page.evaluate(() => document.activeElement === document.body)).toBe(true);
+});
+
 test("a click on the parent padding closes only the submenu", async ({ page }) => {
 	await openBlockMenu(page);
 	await pressAll(page, ["ArrowDown", "ArrowDown", "ArrowDown", "ArrowRight"]);
@@ -846,6 +1181,47 @@ test("a scroll of the parent menu closes its submenu", async ({ page }) => {
 		.evaluate((node) => node.scrollBy(0, 40));
 	await expect(menu(page, "Turn into ›")).toBeHidden();
 	await expect(menu(page, "Block menu")).toBeFocused();
+});
+
+test("a scroll of the level stops a pending hover open", async ({ page }) => {
+	await page.clock.install();
+	await openBlockMenu(page);
+	await pauseClock(page);
+	const point = await center(item(page, "Turn into ›"));
+	await page.mouse.move(point.x, point.y, { steps: 4 });
+	await menu(page, "Block menu")
+		.locator(":scope > .story-scroll")
+		.evaluate(
+			(node) =>
+				new Promise((resolve) => {
+					node.addEventListener("scroll", resolve, { once: true });
+					node.scrollBy(0, 40);
+				}),
+		);
+	await page.clock.runFor(151);
+	await expect(menu(page, "Turn into ›")).toBeHidden();
+});
+
+test("a submenu that stops rendering while open closes like Escape, and the parent keeps working", async ({ page }) => {
+	await openStory(page, "removed-submenu");
+	await button(page, "File").click();
+	await pressAll(page, ["ArrowDown", "ArrowDown", "ArrowRight"]);
+	await expect(menu(page, "Share ›")).toBeFocused();
+
+	// "Stop sharing" removes the whole submenu, with focus inside it.
+	await pressAll(page, ["ArrowDown", "Enter"]);
+	await expect(item(page, "Share ›")).toHaveCount(0);
+	await expect(menu(page, "File")).toBeFocused();
+	expect(await active(page)).toBeNull();
+
+	// The parent has no open submenu left: the keys work, and leaving the menu clears the active item.
+	await page.keyboard.press("End");
+	expect(await active(page)).toBe("Delete");
+	await item(page, "Rename").hover();
+	expect(await active(page)).toBe("Rename");
+	const content = await box(menu(page, "File"));
+	await page.mouse.move(content.x + content.width + 100, content.y + content.height + 100, { steps: 4 });
+	expect(await active(page)).toBeNull();
 });
 
 test("scrolling inside a submenu, by wheel or by keys, keeps it open", async ({ page }) => {
@@ -871,49 +1247,6 @@ test("scrolling inside a submenu, by wheel or by keys, keeps it open", async ({ 
 // #endregion submenus
 
 // #region context menu
-function row(page: Page, name: string) {
-	return page.getByRole("treeitem", { name, exact: true });
-}
-
-async function openContextStory(page: Page) {
-	await page.goto("/iframe.html?id=menu--context-menu&viewMode=story");
-	await expect(row(page, "alpha")).toBeVisible();
-}
-
-/**
- * Send the contextmenu event Chromium sends to the focused element after Shift+F10 or the
- * ContextMenu key: `button` -1, at a position that is not the pointer. Firefox and WebKit send none
- * for a key in tests. Returns whether a handler prevented the browser's own menu.
- */
-async function sendKeyContextMenu(page: Page) {
-	return page.evaluate(() => {
-		const event = new PointerEvent("contextmenu", {
-			button: -1,
-			clientX: 500,
-			clientY: 500,
-			bubbles: true,
-			cancelable: true,
-		});
-		document.activeElement!.dispatchEvent(event);
-		return event.defaultPrevented;
-	});
-}
-
-/**
- * Record whether each contextmenu event kept the browser's own menu from opening.
- */
-async function recordContextMenus(page: Page) {
-	await page.evaluate(() => {
-		const prevented: boolean[] = [];
-		(window as unknown as { contextMenus: boolean[] }).contextMenus = prevented;
-		window.addEventListener("contextmenu", (event) => prevented.push(event.defaultPrevented));
-	});
-}
-
-async function contextMenus(page: Page) {
-	return page.evaluate(() => (window as unknown as { contextMenus: boolean[] }).contextMenus);
-}
-
 test("a right click opens the menu at the pointer, focused, with no active item", async ({ page }) => {
 	await openContextStory(page);
 	const target = await box(row(page, "bravo"));
@@ -1124,12 +1457,17 @@ test("the ⋮ button opens the same menu below itself; after a right click it an
 	await expect(page.locator(".np-MenuPoint")).toHaveCount(0);
 });
 
-test("Tab from a context menu closes it", async ({ page }) => {
+test("Tab from a context menu closes it, also when focus lands inside the row", async ({ page, browserName }) => {
 	await openContextStory(page);
 	await row(page, "bravo").focus();
 	await page.keyboard.press("Shift+F10");
 	await expect(menu(page, "Actions for bravo")).toBeFocused();
+
+	// Chromium and WebKit put the menu right after its trigger in the Tab order, so Tab lands on the
+	// row's ⋮ button, which is inside the trigger. Firefox puts it after the whole row.
 	await page.keyboard.press("Tab");
+	const next = browserName === "firefox" ? row(page, "charlie") : row(page, "bravo").getByRole("button", { name: "⋮" });
+	await expect(next).toBeFocused();
 	await expect(menu(page, "Actions for bravo")).toBeHidden();
 });
 // #endregion context menu
@@ -1156,12 +1494,20 @@ test("the placements and offsets the app uses match Ariakit within 0.5px, with t
 		expect(Math.abs(found.native!.x - found.ariakit!.x), text).toBeLessThanOrEqual(0.5);
 		expect(Math.abs(found.native!.y - found.ariakit!.y), text).toBeLessThanOrEqual(0.5);
 		expect(Math.abs(found.native!.width - found.ariakit!.width), text).toBeLessThanOrEqual(0.5);
+		// The long item sets the width, not the 200px min-width, so a squeezed menu would show.
+		expect(found.native!.width, text).toBeGreaterThan(250);
+		// Both menus could flip the same way. Check they did not.
+		const side = placement.split("-")[0]!;
+		const onSide = { bottom: found.native!.y > 0, top: found.native!.y < 0, right: found.native!.x > 0 }[side];
+		expect(onSide, `${text} side`).toBe(true);
 	}
 });
 
 test("every placement opens on its side and aligns like its name", async ({ page }) => {
 	await openStory(page, "placements");
 	await page.getByRole("checkbox", { name: "Show all" }).check();
+	// One button per placement. If a story change broke the selector, the loop would check nothing.
+	await expect(page.locator(".story-grid > button")).toHaveCount(12);
 	for (const trigger of await page.locator(".story-grid > button").all()) {
 		const placement = (await trigger.textContent())!;
 		const [side, align = "center"] = placement.split("-");

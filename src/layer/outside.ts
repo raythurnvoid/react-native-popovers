@@ -21,7 +21,7 @@ type Outside = {
  * content does not close it. The click that opened the layer has no recorded press, so it is
  * ignored too. A right click outside and focus that moves outside also close it.
  */
-export function layer_outside_add(doc: Document, outside: Outside) {
+export function outside_add(doc: Document, outside: Outside) {
 	let pressedOutside: boolean | null = null;
 	const onPointerDown = (event: Event) => {
 		pressedOutside = !outside.covered() && !outside.inside(event.target);

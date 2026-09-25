@@ -1,7 +1,7 @@
 import { anchor_name_add } from "../layer/anchor-name.ts";
 import { focus_first_in, focus_is_focusable } from "../layer/focus.ts";
 import { layer_stack_add } from "../layer/layer-stack.ts";
-import { layer_outside_add } from "../layer/outside.ts";
+import { outside_add } from "../layer/outside.ts";
 import type { Placement } from "../layer/placement.ts";
 
 export type PopoverOptions = {
@@ -103,7 +103,7 @@ export function createPopover(initial: PopoverOptions) {
 			if (!shownPositioner.matches(":popover-open")) shownPositioner.showPopover({ source: shownAnchor });
 
 			const removeLayer = layer_stack_add(win, { escape });
-			const removeOutside = layer_outside_add(doc, {
+			const removeOutside = outside_add(doc, {
 				inside,
 				covered,
 				// Focus that moved outside stays there, so it is not an "outside" close for focus restore.

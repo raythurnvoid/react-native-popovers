@@ -1,9 +1,9 @@
 import { anchor_name_add } from "../layer/anchor-name.ts";
 import { focus_is_focusable } from "../layer/focus.ts";
 import { layer_stack_add } from "../layer/layer-stack.ts";
-import { layer_outside_add } from "../layer/outside.ts";
+import { outside_add } from "../layer/outside.ts";
 import type { Placement } from "../layer/placement.ts";
-import { MENU_GRACE_TIMEOUT, menu_grace_area, menu_grace_contains } from "./menu-grace.ts";
+import { MENU_GRACE_TIMEOUT, menu_grace_area, menu_grace_contains, type Point } from "./menu-grace.ts";
 import { menu_typeahead_is_key, menu_typeahead_next, menu_typeahead_normalize } from "./menu-typeahead.ts";
 
 export type MenuOptions = {
@@ -14,18 +14,21 @@ export type MenuOptions = {
 
 /**
  * How a menu opens. `pointer` focuses the menu with no active item. The keyboard reasons also make
- * the first or last item active. `hover` opens a submenu and leaves focus in the parent menu.
+ * the first or last item active. `hover` opens a submenu and leaves focus in the parent menu. A
+ * mouse click on a submenu item opens with `hover` too, so focus stays in the parent like after a
+ * hover.
  */
-export type MenuOpenReason = "pointer" | "keyboard-first" | "keyboard-last" | "hover";
+type MenuOpenReason = "pointer" | "keyboard-first" | "keyboard-last" | "hover";
 
 /**
  * Why a menu closes. Focus restore reads it.
  * - `toggle`, `escape`, `select`: focus goes back to the button (or, in a submenu, to the parent menu).
+ *   `escape` is Escape, the arrow key that closes a submenu, or a submenu that stops rendering.
  * - `outside`, `blur`: focus stays where the user put it.
  * - `focus`: focus already moved outside, and stays there.
  * - `sibling`: another item of the parent menu took over. `parent`: the parent menu is closing.
  */
-export type MenuCloseReason = "toggle" | "escape" | "select" | "outside" | "blur" | "focus" | "sibling" | "parent";
+type MenuCloseReason = "toggle" | "escape" | "select" | "outside" | "blur" | "focus" | "sibling" | "parent";
 
 export type MenuController = ReturnType<typeof createMenu>;
 
@@ -47,8 +50,6 @@ type MenuLevel = {
 	openChildOf: (item: HTMLElement, reason: MenuOpenReason) => void;
 };
 
-type Point = { x: number; y: number };
-
 type Shown = {
 	positioner: HTMLElement;
 	anchor: HTMLElement;
@@ -69,9 +70,11 @@ const HOVER_OPEN_DELAY = 150;
 const TYPEAHEAD_RESET = 500;
 
 /**
- * A text field inside a menu keeps DOM focus and the browser's own context menu.
+ * A text field inside a menu keeps DOM focus, its own keys, and the browser's own context menu. A
+ * checkbox, radio, button, or range input takes no typing, so it is not a text field.
  */
-const TEXT_FIELD_SELECTOR = "input, textarea, select, [contenteditable]:not([contenteditable='false'])";
+const TEXT_FIELD_SELECTOR =
+	"input:not([type=checkbox], [type=radio], [type=button], [type=submit], [type=reset], [type=range], [type=color], [type=file], [type=image]), textarea, select, [contenteditable]:not([contenteditable='false'])";
 
 let next_anchor_id = 0;
 
@@ -103,7 +106,7 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 	// Set while a context menu trigger opened the menu. `anchor` is where the menu shows: the point
 	// element or the focused element. `disclosure` gets focus back on close.
 	let context: { anchor: HTMLElement; disclosure: HTMLElement } | null = null;
-	let point: HTMLElement | null = null;
+	let pointAnchor: HTMLElement | null = null;
 	let contextTriggers = 0;
 	let positioner: HTMLElement | null = null;
 	let content: HTMLElement | null = null;
@@ -131,6 +134,8 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 	// The last pointer point on an item. When it was the item of the open submenu, the grace area starts there.
 	let lastItemPoint: { item: HTMLElement; point: Point } | null = null;
 	let grace: { side: "left" | "right"; polygon: Point[]; timer: ReturnType<typeof setTimeout> } | null = null;
+	// The button id that the content's `aria-labelledby` points at, when this controller wrote it.
+	let labelledBy: string | null = null;
 
 	function notify() {
 		snapshot = { open, placement: options.placement };
@@ -178,9 +183,12 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 		// Like Ariakit, point at the menu only while it is in the DOM.
 		if (content?.id) button.setAttribute("aria-controls", content.id);
 		else button.removeAttribute("aria-controls");
-		// The button names the menu, like Ariakit, unless the caller named it.
-		if (content && button.id && !content.hasAttribute("aria-label") && !content.hasAttribute("aria-labelledby")) {
+		// The button names the menu, like Ariakit, unless the caller named it. A new button element
+		// has a new id, so update a name that this controller wrote.
+		const current = content?.getAttribute("aria-labelledby") ?? null;
+		if (content && button.id && !content.hasAttribute("aria-label") && (current === null || current === labelledBy)) {
 			content.setAttribute("aria-labelledby", button.id);
+			labelledBy = button.id;
 		}
 	}
 
@@ -204,6 +212,15 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 		if (!is_element(target)) return null;
 		const item = target.closest<HTMLElement>(ITEM_SELECTOR);
 		return item && item.closest('[role="menu"]') === content ? item : null;
+	}
+
+	/**
+	 * The text field that holds `target` in this level. A field around the whole menu, such as an
+	 * editor root that the menu renders in, does not count.
+	 */
+	function levelTextField(target: Element) {
+		const field = target.closest(TEXT_FIELD_SELECTOR);
+		return field && field.closest('[role="menu"]') === content ? field : null;
 	}
 
 	function setActive(item: HTMLElement | null, scroll: boolean) {
@@ -316,13 +333,13 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 			// Only the root listens for outside events. Every submenu is inside the root positioner.
 			const removeOutside = parent
 				? () => {}
-				: layer_outside_add(doc, {
+				: outside_add(doc, {
 						inside,
 						covered,
 						close: (reason) => request(false, reason),
 					});
 
-			// A context menu closes when the window loses focus, like the app's Ariakit wrapper did.
+			// A context menu closes when the window loses focus, so it never stays open behind another window.
 			const onBlur = () => request(false, "blur");
 			const blurs = !parent && contextTriggers > 0;
 			if (blurs) win.addEventListener("blur", onBlur);
@@ -380,9 +397,9 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 		const focusInside = !!positioner?.contains(doc.activeElement);
 
 		if (parent) {
-			// Escape and ArrowLeft go back to the parent menu, with this submenu's item active. A sibling
-			// hover moves focus back only when it was in this submenu.
-			if (closeReason === "escape" || (closeReason === "sibling" && focusInside)) {
+			// Escape, ArrowLeft, and a sibling hover go back to the parent menu, with this submenu's item
+			// active. Only when focus was in this submenu: a text field in the parent keeps its focus.
+			if ((closeReason === "escape" || closeReason === "sibling") && focusInside) {
 				parent.focusItem(button);
 			}
 			return;
@@ -421,8 +438,8 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 		sync();
 		if (!value && context) {
 			context = null;
-			point?.remove();
-			point = null;
+			pointAnchor?.remove();
+			pointAnchor = null;
 		}
 		notify();
 	}
@@ -479,6 +496,17 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 
 	function handleKeyDown(event: KeyboardEvent) {
 		if (!content || !is_element(event.target) || event.target.closest('[role="menu"]') !== content) return;
+		// The browser puts the menu right after its trigger in the Tab order. So Tab from a context menu
+		// can land on a button inside the trigger row, and the row counts as inside. Close once the
+		// browser has moved focus, unless focus stayed in the menu.
+		if (event.key === "Tab" && !event.shiftKey) {
+			const doc = content.ownerDocument;
+			setTimeout(() => {
+				if (!root().contains(doc.activeElement)) root().request(false, "focus");
+			});
+		}
+		// A text field inside the menu keeps its own keys. Only Escape still closes the menu.
+		if (levelTextField(event.target) && event.key !== "Escape") return;
 		cancelHoverOpen();
 		endGrace();
 		if (event.defaultPrevented || event.isComposing) return;
@@ -496,7 +524,7 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 
 		switch (event.key) {
 			case "ArrowDown":
-				// No loop at the ends, like the app's Ariakit menus.
+				// No loop at the ends, like Ariakit's default (`focusLoop` false).
 				move(index === -1 ? list[0] : list[index + 1]);
 				break;
 			case "ArrowUp":
@@ -606,8 +634,10 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 		}
 
 		// Hover moves focus to the item's level, like Ariakit. So after the pointer enters a submenu,
-		// Enter runs the submenu item, and after it comes back, the keys go to the parent again.
-		if (content.ownerDocument.activeElement !== content) content.focus({ preventScroll: true });
+		// Enter runs the submenu item, and after it comes back, the keys go to the parent again. A text
+		// field of this level keeps focus, so the user can go on typing.
+		const focused = content.ownerDocument.activeElement;
+		if (focused !== content && !(focused && levelTextField(focused))) content.focus({ preventScroll: true });
 
 		// Later moves on the same item do not restart the timer. An open submenu needs no timer.
 		if (!children.has(item)) {
@@ -623,7 +653,10 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 		if (event.pointerType === "touch") return;
 		cancelHoverOpen();
 		lastPoint = null;
-		// Leaving every menu keeps an open submenu open (the app turned Ariakit's hover-out close off).
+		// The pointer comes back from outside, so an old point must not start a grace area.
+		lastItemPoint = null;
+		// Leaving every menu keeps an open submenu open, so a pointer that overshoots does not lose it.
+		// Ariakit closes it by default (`hideOnHoverOutside`); t3-chat turned that off.
 		if (!openChild) setActive(null, false);
 	}
 
@@ -634,7 +667,7 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 	 */
 	function handleMouseDown(event: MouseEvent) {
 		if (!is_element(event.target) || event.target.closest('[role="menu"]') !== content) return;
-		if (event.target.closest(TEXT_FIELD_SELECTOR)) return;
+		if (levelTextField(event.target)) return;
 		event.preventDefault();
 	}
 
@@ -645,7 +678,7 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 	 */
 	function handleContextMenu(event: MouseEvent) {
 		if (event.button !== -1 || !is_element(event.target)) return;
-		if (event.target.closest('[role="menu"]') !== content || event.target.closest(TEXT_FIELD_SELECTOR)) return;
+		if (event.target.closest('[role="menu"]') !== content || levelTextField(event.target)) return;
 		event.preventDefault();
 	}
 
@@ -659,13 +692,14 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 	}
 
 	/**
-	 * A scroll of this level closes its submenu, so the submenu never floats beside an item that
-	 * scrolled away. A scroll inside the submenu belongs to the submenu.
+	 * A scroll of this level closes its submenu and stops a pending hover open, so a submenu never
+	 * floats beside an item that scrolled away. A scroll inside the submenu belongs to the submenu.
 	 */
 	function handleScroll(event: Event) {
-		if (!openChild || !is_element(event.target)) return;
+		if (!is_element(event.target)) return;
 		if (event.target !== content && event.target.closest('[role="menu"]') !== content) return;
-		openChild.request(false, "sibling");
+		cancelHoverOpen();
+		openChild?.request(false, "sibling");
 	}
 	// #endregion pointer
 
@@ -709,15 +743,15 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 			if (at) {
 				// A 0×0 fixed element at the pointer. It lives in body, so a transformed or contained
 				// ancestor of the trigger cannot move it.
-				point ??= doc.body.appendChild(doc.createElement("span"));
-				point.className = "np-MenuPoint";
-				point.setAttribute("aria-hidden", "true");
-				point.style.left = `${at.x}px`;
-				point.style.top = `${at.y}px`;
-				nextAnchor = point;
+				pointAnchor ??= doc.body.appendChild(doc.createElement("span"));
+				pointAnchor.className = "np-MenuPoint";
+				pointAnchor.setAttribute("aria-hidden", "true");
+				pointAnchor.style.left = `${at.x}px`;
+				pointAnchor.style.top = `${at.y}px`;
+				nextAnchor = pointAnchor;
 			} else {
-				point?.remove();
-				point = null;
+				pointAnchor?.remove();
+				pointAnchor = null;
 				const focused = doc.activeElement;
 				nextAnchor = focused instanceof HTMLElement && trigger.contains(focused) ? focused : trigger;
 			}
@@ -735,8 +769,8 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 				return;
 			}
 			context = null;
-			point?.remove();
-			point = null;
+			pointAnchor?.remove();
+			pointAnchor = null;
 			sync();
 			request(true, reason);
 		},
@@ -749,7 +783,7 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 		/**
 		 * Register the button. In a submenu, it is the parent item, so the parent can open this menu.
 		 */
-		registerAnchor(element: HTMLElement | null, previous: HTMLElement | null) {
+		registerButton(element: HTMLElement | null, previous: HTMLElement | null) {
 			if (element) {
 				button = element;
 				parent?.registerChild(element, menu);
@@ -760,10 +794,12 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 			if (button !== previous) return;
 			if (previous) parent?.unregisterChild(previous, menu);
 			button = null;
-			sync();
-			// A replacement button can attach later in the same commit. Close only when none did.
+			// React detaches the old ref first, and a replacement button can attach later in the same
+			// commit. Wait for it, like setPositioner, so an open menu does not hide and show again. Close
+			// only when no button came back.
 			queueMicrotask(() => {
 				if (!button && !context) request(false, "parent");
+				sync();
 			});
 		},
 		setPositioner(element: HTMLElement | null) {
@@ -785,7 +821,10 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 			children.set(item, child);
 		},
 		unregisterChild(item: HTMLElement, child: MenuLevel) {
-			if (children.get(item) === child) children.delete(item);
+			if (children.get(item) !== child) return;
+			children.delete(item);
+			// The submenu item left the DOM, so it cannot stay active.
+			if (activeItem === item) setActive(null, false);
 		},
 		childOpened(child: MenuLevel) {
 			if (openChild && openChild !== child) openChild.request(false, "sibling");
@@ -817,13 +856,15 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 		handleScroll,
 		destroy() {
 			// A remount after Fast Refresh must start closed, or the next button click would ask to
-			// close a menu that is already closed.
-			open = false;
+			// close a menu that is already closed. An open submenu whose MenuProvider stops rendering
+			// closes like Escape: the parent forgets it and takes focus back.
+			closeReason = parent ? "escape" : "focus";
+			applyOpen(false);
 			cancelHoverOpen();
 			endGrace();
 			clearTimeout(typeaheadTimer);
-			point?.remove();
-			point = null;
+			pointAnchor?.remove();
+			pointAnchor = null;
 			context = null;
 			sync();
 			writeButtonAria();

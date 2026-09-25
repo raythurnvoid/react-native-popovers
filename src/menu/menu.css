@@ -77,16 +77,21 @@
 		pointer-events: auto;
 	}
 
-	/* Focus stays on the menu while the keys move the active item. The app draws its own ring. */
+	/* Focus stays on the menu while the keys move the active item. An app draws its own ring. */
 	:where(.np-Menu:focus) {
 		outline: none;
 	}
 
+	/* #endregion menu */
+
+	/* #region item */
 	/* A disabled item ignores the pointer, so hovering it does not make it active. */
 	:where(.np-Menu [role^="menuitem"][aria-disabled="true"]) {
 		pointer-events: none;
 	}
+	/* #endregion item */
 
+	/* #region context menu trigger */
 	/* The point a context menu opens at. It lives in body, so no ancestor can move it. */
 	:where(.np-MenuPoint) {
 		position: fixed;
@@ -95,5 +100,5 @@
 
 		pointer-events: none;
 	}
-	/* #endregion menu */
+	/* #endregion context menu trigger */
 }

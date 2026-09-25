@@ -221,6 +221,65 @@ export const DisabledTrigger: Story = {
 		</div>
 	),
 };
+
+export const TextField: Story = {
+	render: () => (
+		<div className="story-row">
+			<Drop label="Filter">
+				<input aria-label="Filter text" />
+				<label>
+					<input type="checkbox" /> Match case
+				</label>
+				<MenuItem className="story-MenuItem">Apple</MenuItem>
+				<MenuItem className="story-MenuItem">Banana</MenuItem>
+				<MenuProvider>
+					<MenuButton render={<MenuItem className="story-MenuItem" />}>More ›</MenuButton>
+					<Menu className="story-Menu">
+						<MenuItem className="story-MenuItem">Cherry</MenuItem>
+					</Menu>
+				</MenuProvider>
+			</Drop>
+			{/* Like a menu in an editor node view: the menu renders inside the editable root. */}
+			<div contentEditable suppressContentEditableWarning aria-label="Editor">
+				<p>Text before the node</p>
+				<div contentEditable={false}>
+					<Drop label="Node">
+						<MenuItem className="story-MenuItem">Delete node</MenuItem>
+						<MenuItem className="story-MenuItem">Duplicate node</MenuItem>
+					</Drop>
+				</div>
+			</div>
+		</div>
+	),
+};
+
+export const ReplacedButton: Story = {
+	render: function Render() {
+		const [version, setVersion] = useState(0);
+
+		// The key gives the button a new DOM element on each click of the item.
+		return (
+			<div className="story-row">
+				<MenuProvider>
+					<MenuButton key={version}>{`Button ${version}`}</MenuButton>
+					<Menu className="story-Menu">
+						<MenuItem className="story-MenuItem" hideOnClick={false} onClick={() => setVersion((value) => value + 1)}>
+							Replace button
+						</MenuItem>
+					</Menu>
+				</MenuProvider>
+				{/* A menu with its own label keeps it. The button name does not replace it. */}
+				<span id="story-own-label">Recent files</span>
+				<MenuProvider>
+					<MenuButton>Recent</MenuButton>
+					<Menu className="story-Menu" aria-labelledby="story-own-label">
+						<MenuItem className="story-MenuItem">notes.md</MenuItem>
+					</Menu>
+				</MenuProvider>
+			</div>
+		);
+	},
+};
 // #endregion basics
 
 // #region controlled
@@ -228,6 +287,7 @@ export const StrictControlled: Story = {
 	render: function Render() {
 		const [log, add] = useLog();
 		const [open, setOpen] = useState(false);
+		const [sticky, setSticky] = useState(false);
 
 		return (
 			<StrictMode>
@@ -244,6 +304,26 @@ export const StrictControlled: Story = {
 						<Menu className="story-Menu" unmountOnHide>
 							<MenuItem className="story-MenuItem">Retry</MenuItem>
 							<MenuItem className="story-MenuItem">Cancel</MenuItem>
+						</Menu>
+					</MenuProvider>
+					{/* A parent that refuses every change: setOpen runs, and the menu stays closed. */}
+					<MenuProvider open={false} setOpen={(value) => add(value ? "asked open" : "asked closed")}>
+						<MenuButton>Locked</MenuButton>
+						<Menu className="story-Menu">
+							<MenuItem className="story-MenuItem">Never shown</MenuItem>
+						</Menu>
+					</MenuProvider>
+					{/* A parent that accepts an open and refuses every close. */}
+					<MenuProvider
+						open={sticky}
+						setOpen={(value) => {
+							add(value ? "sticky open" : "sticky asked closed");
+							if (value) setSticky(true);
+						}}
+					>
+						<MenuButton>Sticky</MenuButton>
+						<Menu className="story-Menu">
+							<MenuItem className="story-MenuItem">Stay</MenuItem>
 						</Menu>
 					</MenuProvider>
 					<button type="button" onClick={() => setOpen((value) => !value)}>
@@ -375,6 +455,31 @@ export const SubmenuRtl: Story = {
 		);
 	},
 };
+
+// Like a menu fed by live data: an item of the open submenu removes the whole submenu.
+export const RemovedSubmenu: Story = {
+	render: function Render() {
+		const [canShare, setCanShare] = useState(true);
+
+		return (
+			<Drop label="File">
+				<MenuItem className="story-MenuItem">Rename</MenuItem>
+				{canShare && (
+					<MenuProvider>
+						<MenuButton render={<MenuItem className="story-MenuItem" />}>Share ›</MenuButton>
+						<Menu className="story-Menu">
+							<MenuItem className="story-MenuItem">Email</MenuItem>
+							<MenuItem className="story-MenuItem" hideOnClick={false} onClick={() => setCanShare(false)}>
+								Stop sharing
+							</MenuItem>
+						</Menu>
+					</MenuProvider>
+				)}
+				<MenuItem className="story-MenuItem">Delete</MenuItem>
+			</Drop>
+		);
+	},
+};
 // #endregion submenus
 
 // #region context menu
@@ -395,7 +500,8 @@ function Row(props: Row_Props) {
 		<MenuProvider setOpen={(open) => onSelect(`${name} ${open ? "open" : "closed"}`)}>
 			<ContextMenuTrigger render={<div className="story-tree-row" role="treeitem" tabIndex={0} aria-label={name} />}>
 				<span>{name}</span>
-				<MenuButton render={<button type="button" className="story-more" tabIndex={-1} />}>⋮</MenuButton>
+				{/* A Tab stop inside the row, like the row buttons in t3-chat. */}
+				<MenuButton render={<button type="button" className="story-more" />}>⋮</MenuButton>
 			</ContextMenuTrigger>
 			<Menu className="story-Menu" aria-label={`Actions for ${name}`}>
 				<MenuItem className="story-MenuItem" onClick={() => onSelect(`Rename ${name}`)}>
@@ -488,7 +594,7 @@ export const AriakitParity: Story = {
 							N
 						</MenuButton>
 						<Menu className="story-Menu" gutter={gutter} shift={shift} data-kind="native">
-							<MenuItem className="story-MenuItem">{`${placement}, gutter ${gutter}`}</MenuItem>
+							<MenuItem className="story-MenuItem">{`${placement}, gutter ${gutter}: a long item sets the width`}</MenuItem>
 						</Menu>
 					</MenuProvider>
 					<AriakitMenuProvider open placement={placement}>
@@ -503,7 +609,7 @@ export const AriakitParity: Story = {
 							autoFocusOnShow={false}
 							data-kind="ariakit"
 						>
-							<AriakitMenuItem className="story-MenuItem">{`${placement}, gutter ${gutter}`}</AriakitMenuItem>
+							<AriakitMenuItem className="story-MenuItem">{`${placement}, gutter ${gutter}: a long item sets the width`}</AriakitMenuItem>
 						</AriakitMenu>
 					</AriakitMenuProvider>
 				</div>

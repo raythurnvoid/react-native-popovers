@@ -99,33 +99,34 @@ There is no "close the layers inside" step. When the parent hides, a tooltip ins
 
 ## Menu
 
-`src/menu/menu.tsx` has the regions `context`, `provider`, `button`, `menu`, `item`, `checkbox item`, `group`, `group label`, and `context menu trigger`. `menu.css` has one `menu` region, like `popover.css`. `src/menu/menu-controller.ts` makes one controller per menu level, with the regions `items`, `submenus`, `show`, `keys`, and `pointer`. A `MenuProvider` inside a `Menu` makes a child level, and the child gets the parent controller. Pure helpers are in `menu-typeahead.ts` and `menu-grace.ts`, with unit tests next to them.
+`src/menu/menu.tsx` has the regions `context`, `provider`, `button`, `menu`, `item`, `checkbox item`, `group`, `group label`, and `context menu trigger`. `menu.css` has the regions `menu`, `item`, and `context menu trigger`, one per owner, like `tooltip.css`. `src/menu/menu-controller.ts` makes one controller per menu level, with the regions `items`, `submenus`, `show`, `keys`, and `pointer`. A `MenuProvider` inside a `Menu` makes a submenu level, and the submenu gets the parent controller. Pure helpers are in `menu-typeahead.ts` and `menu-grace.ts`, with unit tests next to them.
 
 Only `Menu` subscribes. The controller writes the button's `aria-expanded` and `aria-controls`, the content's `aria-activedescendant`, and the item's `data-active-item` straight to the DOM. The button and the items never render on open, close, hover, or a key.
 
-Focus is virtual, like Ariakit: DOM focus stays on `role="menu"`, and every key goes to that level's `handleKeyDown`. Enter clicks the active item on keydown, and Space on keyup. `handleMouseDown` prevents focus moves inside the level, except in text fields. Handlers filter by level with `target.closest('[role="menu"]') === content`, because a submenu is a DOM and React child of its parent menu.
+Focus is virtual, like Ariakit: DOM focus stays on `role="menu"`, and every key goes to that level's `handleKeyDown`. A text field inside a menu keeps focus and its own keys; only Escape still closes the menu from it. `levelTextField` finds the field only inside this level, so an editor root around the whole menu and a checkbox input do not count. A submenu that closes moves focus to its parent only when focus was inside it, so a text field in the parent keeps focus. Tab closes the root after the browser moves focus, unless focus stayed in the menu. The outside check alone misses it, because Chromium and WebKit can Tab into a button inside the context trigger row, and that row counts as inside. Enter clicks the active item on keydown, and Space on keyup. `handleMouseDown` prevents focus moves inside the level, except in text fields. Handlers filter by level with `target.closest('[role="menu"]') === content`, because a submenu is a DOM and React child of its parent menu.
 
 Levels:
 
-- One open child per level. Opening one closes the other with the reason `"sibling"`.
-- Closing a level closes its children first, deepest first, with the reason `"parent"`. A manual popover does not close its manual children by itself, so this step is required.
-- A scroll or a click on the level outside its items closes its open child.
-- Escape and ArrowLeft (ArrowRight in RTL) close one level. Focus goes to the parent with the child's item active (`parent.focusItem`). RTL comes from the computed `direction` at key time.
+- One open submenu per level. Opening one closes the other with the reason `"sibling"`.
+- Closing a level closes its submenus first, deepest first, with the reason `"parent"`. A manual popover does not close its manual children by itself, so this step is required.
+- A scroll or a click on the level outside its items closes its open submenu. A scroll also stops a pending hover open.
+- Escape and ArrowLeft (ArrowRight in RTL) close one level. Focus goes to the parent with the submenu's item active (`parent.focusItem`). RTL comes from the computed `direction` at key time. A submenu whose `MenuProvider` stops rendering while open closes the same way (`destroy`).
+- A root button's open keys follow the logical side too: a `right-start` menu opens with ArrowLeft in RTL.
 - Outside listeners (`src/layer/outside.ts`, shared with the popover) run on the root level only. `contains()` covers every level, because submenus stay DOM children of the root.
 
 Hover and the grace area:
 
 - A mouse or pen move sets the active item. Touch is skipped: check `pointerType`. The move handler compares client coordinates, because WebKit sends synthetic moves with the same point.
-- Hover on a submenu item starts a 150 ms timer. Later moves on it do not restart the timer. Setting another active item in the level closes the open child.
-- When the pointer leaves the item of an open child, `menu_grace_area` builds the Radix polygon from the last point on that item and the child's box. For 300 ms, a move inside the polygon toward the child's side does not change the active item and does not start a hover timer. The side comes from the rects, because CSS fallbacks can flip the child.
+- Hover on a submenu item starts a 150 ms timer. Later moves on it do not restart the timer. Setting another active item in the level closes the open submenu.
+- When the pointer leaves the item of an open submenu, `menu_grace_area` builds the Radix polygon from the last point on that item and the submenu's box. For 300 ms, a move inside the polygon toward the submenu's side does not change the active item and does not start a hover timer. The side comes from the rects, because CSS fallbacks can flip the submenu. Leaving the level forgets the last point, so a pointer that comes back never starts a grace area.
 
 Context menu:
 
-- `openAt(trigger, point)` anchors to a 0×0 `position: fixed` span (`np-MenuPoint`) in `body`, so a transformed row cannot move it. A second `openAt` moves the anchor name without hiding the menu. A key open (`point` null) anchors to the focused element inside the trigger.
+- `openAt(trigger, at)` anchors to a 0×0 `position: fixed` span (`np-MenuPoint`) in `body`, so a transformed row cannot move it. A second `openAt` moves the anchor name without hiding the menu. A key open (`at` null) anchors to the focused element inside the trigger.
 - Chromium sends a `contextmenu` event with `button` -1 after Shift+F10 and the ContextMenu key. The trigger treats it as a key open. The menu content prevents it, so the browser menu does not open on top of ours.
 - A provider with a `ContextMenuTrigger` closes on window blur.
 
-StrictMode detaches and attaches refs. `setPositioner(null)` syncs in a microtask, so a ref swap does not hide and show the menu.
+StrictMode detaches and attaches refs. `setPositioner(null)` and `registerButton(null)` sync in a microtask, so a ref swap does not hide and show the menu.
 
 Test timing with `page.clock` and `pauseClock` in `e2e/menu.spec.ts`: install the clock before `openStory`, and step past each boundary (149 and 151 ms, 300 ms, 500 ms).
 
