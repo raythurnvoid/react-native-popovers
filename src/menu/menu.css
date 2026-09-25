@@ -1,0 +1,99 @@
+/* All rules sit in one layer and use :where(), so any app rule wins over them. An app that uses
+   layers must list native_popovers after its reset layers and before its component layers. */
+@layer native_popovers {
+	/* #region menu */
+	:where(.np-MenuPositioner) {
+		/* Use the natural width, like the popover. With auto width, a start or end placement near an
+		   edge wraps its content into the small space left, instead of flipping. */
+		width: max-content;
+
+		position: fixed;
+		inset: auto;
+		position-anchor: var(--np-MenuPositioner-anchor);
+		position-area: var(--np-MenuPositioner-position-area);
+		position-try-fallbacks: var(--np-MenuPositioner-position-try-fallbacks);
+
+		/* Clear the popover UA box. */
+		margin: 0;
+		padding: 0;
+		border: 0;
+		overflow: visible;
+
+		background: transparent;
+		color: inherit;
+
+		/* Only the menu takes the pointer, not the gap. */
+		pointer-events: none;
+	}
+
+	/* The gap goes on both edges of the axis that can flip. With one edge, a flip puts it on the far side. */
+	:where(.np-MenuPositioner[data-side="top"], .np-MenuPositioner[data-side="bottom"]) {
+		margin-block: var(--np-MenuPositioner-gutter, 0px);
+	}
+
+	:where(.np-MenuPositioner[data-side="left"], .np-MenuPositioner[data-side="right"]) {
+		margin-inline: var(--np-MenuPositioner-gutter, 0px);
+	}
+
+	/* The overflow padding is a margin on the other axis, on the far edge (see popover.css). The shift
+	   is a margin on the aligned edge: the browser lines up the margin box with the anchor edge, so a
+	   negative margin moves the menu past it. A flip-block or flip-inline fallback mirrors both
+	   margins with the position, like Floating UI mirrors Ariakit's shift for an -end placement. */
+	:where(.np-MenuPositioner:is([data-side="top"], [data-side="bottom"])[data-align="center"]) {
+		margin-inline: var(--np-MenuPositioner-overflow-padding, 0px);
+	}
+
+	:where(.np-MenuPositioner:is([data-side="top"], [data-side="bottom"])[data-align="start"]) {
+		margin-inline-start: var(--np-MenuPositioner-shift, 0px);
+		margin-inline-end: var(--np-MenuPositioner-overflow-padding, 0px);
+	}
+
+	:where(.np-MenuPositioner:is([data-side="top"], [data-side="bottom"])[data-align="end"]) {
+		margin-inline-start: var(--np-MenuPositioner-overflow-padding, 0px);
+		margin-inline-end: var(--np-MenuPositioner-shift, 0px);
+	}
+
+	:where(.np-MenuPositioner:is([data-side="left"], [data-side="right"])[data-align="center"]) {
+		margin-block: var(--np-MenuPositioner-overflow-padding, 0px);
+	}
+
+	:where(.np-MenuPositioner:is([data-side="left"], [data-side="right"])[data-align="start"]) {
+		margin-block-start: var(--np-MenuPositioner-shift, 0px);
+		margin-block-end: var(--np-MenuPositioner-overflow-padding, 0px);
+	}
+
+	:where(.np-MenuPositioner:is([data-side="left"], [data-side="right"])[data-align="end"]) {
+		margin-block-start: var(--np-MenuPositioner-overflow-padding, 0px);
+		margin-block-end: var(--np-MenuPositioner-shift, 0px);
+	}
+
+	/* A modal above the menu made it inert (Ariakit marks the tree outside a modal that way). The top
+	   layer would still paint the menu above that modal, so hide it until the modal closes. */
+	:where([inert] .np-MenuPositioner, .np-MenuPositioner[inert]) {
+		visibility: hidden;
+	}
+
+	:where(.np-Menu) {
+		pointer-events: auto;
+	}
+
+	/* Focus stays on the menu while the keys move the active item. The app draws its own ring. */
+	:where(.np-Menu:focus) {
+		outline: none;
+	}
+
+	/* A disabled item ignores the pointer, so hovering it does not make it active. */
+	:where(.np-Menu [role^="menuitem"][aria-disabled="true"]) {
+		pointer-events: none;
+	}
+
+	/* The point a context menu opens at. It lives in body, so no ancestor can move it. */
+	:where(.np-MenuPoint) {
+		position: fixed;
+		width: 0;
+		height: 0;
+
+		pointer-events: none;
+	}
+	/* #endregion menu */
+}

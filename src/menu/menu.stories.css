@@ -1,0 +1,178 @@
+/* Story look only. The library ships layout rules, not a theme. */
+.story-Menu {
+	box-sizing: border-box;
+	display: flex;
+	flex-direction: column;
+	min-width: 200px;
+	padding: 4px;
+
+	border: 1px solid #999;
+	border-radius: 6px;
+
+	background: #fff;
+	color: #111;
+	font:
+		14px/1.4 system-ui,
+		sans-serif;
+	box-shadow: 0 4px 12px rgb(0 0 0 / 0.2);
+}
+
+.story-Menu:focus-visible {
+	outline: 2px solid #3b82f6;
+}
+
+/* Like t3-chat's `.MyMenuPopover { contain: content; max-height: 300px }` around a scroll area. */
+.story-Menu-contained {
+	max-height: 300px;
+
+	contain: content;
+}
+
+.story-scroll {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	max-height: 200px;
+
+	overflow-y: auto;
+}
+
+/* One fixed line, so a new log entry never moves the rows under the pointer. */
+.story-log {
+	display: block;
+	height: 20px;
+
+	overflow: hidden;
+	white-space: nowrap;
+}
+
+.story-MenuItem {
+	display: block;
+	padding: 6px 8px;
+
+	border-radius: 4px;
+
+	color: inherit;
+	text-decoration: none;
+	cursor: default;
+	user-select: none;
+}
+
+.story-MenuItem[data-active-item] {
+	background: #dbeafe;
+}
+
+.story-MenuItem[aria-disabled="true"] {
+	opacity: 0.5;
+}
+
+.story-MenuLabel {
+	padding: 4px 8px;
+
+	color: #666;
+	font-size: 12px;
+}
+
+.story-MenuGroup + .story-MenuGroup {
+	border-top: 1px solid #ddd;
+}
+
+.story-Tooltip {
+	padding: 4px 6px;
+
+	border-radius: 4px;
+
+	background: #1c1c1c;
+	color: #fff;
+	font:
+		13px/1.4 system-ui,
+		sans-serif;
+}
+
+.story-dialog {
+	position: fixed;
+	inset: 80px auto auto 80px;
+	padding: 16px;
+
+	border: 1px solid #999;
+
+	background: #fff;
+}
+
+.story-row {
+	display: flex;
+	gap: 16px;
+	align-items: center;
+}
+
+.story-grid {
+	display: grid;
+	grid-template-columns: repeat(3, auto);
+	gap: 112px 176px;
+	padding: 112px;
+}
+
+/* Whole-pixel cells, so the native and the Ariakit boxes round the same way. Two columns leave room
+   for each menu, so neither one shifts away from its placement. */
+.story-parity {
+	display: grid;
+	grid-template-columns: repeat(2, 360px);
+	grid-auto-rows: 200px;
+	padding: 40px;
+}
+
+.story-parity-cell {
+	display: flex;
+	gap: 200px;
+	align-items: center;
+	justify-content: center;
+}
+
+.story-parity-trigger {
+	box-sizing: border-box;
+	width: 32px;
+	height: 24px;
+	padding: 0;
+}
+
+.story-tree {
+	display: flex;
+	flex-direction: column;
+	width: 240px;
+	margin: 16px;
+}
+
+/* Like a virtualized tree, where each row sits in a transformed container. */
+.story-tree-transformed {
+	transform: translateY(24px);
+}
+
+.story-tree-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	height: 28px;
+	padding: 0 8px;
+
+	font:
+		14px/1.4 system-ui,
+		sans-serif;
+}
+
+.story-tree-row:focus-visible {
+	outline: 2px solid #3b82f6;
+}
+
+.story-more {
+	width: 24px;
+	height: 24px;
+	padding: 0;
+}
+
+.story-corner {
+	position: fixed;
+}
+
+.story-outside {
+	margin: 16px;
+}

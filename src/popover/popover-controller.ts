@@ -1,6 +1,7 @@
 import { anchor_name_add } from "../layer/anchor-name.ts";
 import { focus_first_in, focus_is_focusable } from "../layer/focus.ts";
 import { layer_stack_add } from "../layer/layer-stack.ts";
+import { layer_outside_add } from "../layer/outside.ts";
 import type { Placement } from "../layer/placement.ts";
 
 export type PopoverOptions = {
@@ -102,34 +103,12 @@ export function createPopover(initial: PopoverOptions) {
 			if (!shownPositioner.matches(":popover-open")) shownPositioner.showPopover({ source: shownAnchor });
 
 			const removeLayer = layer_stack_add(win, { escape });
-
-			// Ariakit's outside rules. A click closes only when the press also started outside, so a
-			// text selection dragged out of the content does not close it. The click that opened the
-			// popover has no recorded press, so it is ignored too.
-			let pressedOutside: boolean | null = null;
-			const onPointerDown = (event: Event) => {
-				pressedOutside = !covered() && !inside(event.target);
-			};
-			const onClick = (event: Event) => {
-				const pressed = pressedOutside;
-				pressedOutside = null;
-				if (!pressed || covered() || inside(event.target)) return;
-				request(false, "outside");
-			};
-			const onContextMenu = (event: Event) => {
-				if (covered() || inside(event.target)) return;
-				request(false, "outside");
-			};
-			const onFocusIn = (event: Event) => {
-				// Some browsers send focusin to the document itself when the window gets focus. Ignore it, like Ariakit.
-				if (event.target === doc || covered() || inside(event.target)) return;
-				// The focused element keeps focus, so this is not an "outside" close for focus restore.
-				request(false);
-			};
-			doc.addEventListener("pointerdown", onPointerDown, true);
-			doc.addEventListener("click", onClick, true);
-			doc.addEventListener("contextmenu", onContextMenu, true);
-			doc.addEventListener("focusin", onFocusIn);
+			const removeOutside = layer_outside_add(doc, {
+				inside,
+				covered,
+				// Focus that moved outside stays there, so it is not an "outside" close for focus restore.
+				close: (reason) => request(false, reason === "outside" ? "outside" : null),
+			});
 
 			// Paint one frame without data-enter so a CSS enter transition can run.
 			let frame = win.requestAnimationFrame(() => {
@@ -155,10 +134,7 @@ export function createPopover(initial: PopoverOptions) {
 				hide: () => {
 					win.cancelAnimationFrame(frame);
 					content?.removeAttribute("data-enter");
-					doc.removeEventListener("pointerdown", onPointerDown, true);
-					doc.removeEventListener("click", onClick, true);
-					doc.removeEventListener("contextmenu", onContextMenu, true);
-					doc.removeEventListener("focusin", onFocusIn);
+					removeOutside();
 					removeLayer();
 					removeAnchorName();
 					if (shownPositioner.matches(":popover-open")) shownPositioner.hidePopover();

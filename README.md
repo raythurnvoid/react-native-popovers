@@ -2,7 +2,7 @@
 
 A small React layer for floating UI. It uses the Popover API and CSS Anchor Positioning. It does not use Floating UI.
 
-It has a tooltip and a click popover. Menus and context menus come later, on the same layer.
+It has a tooltip, a click popover, and a menu with submenus and a context menu mode.
 
 ## Why this exists
 
@@ -70,7 +70,7 @@ Use `popover="manual"`. Open with `showPopover({ source })`. The popover top lay
 - `getSnapshot` returns a new `{ open, placement }` object on each change, and the components render only from it. Do not read the controller's mutable state during render: the React Compiler caches work on the stable controller object, so such a read can go stale.
 - The anchor gets its `anchor-name` only while its tooltip is open. Idle anchors have no anchor styles at all.
 - All tooltips in one document share a small group: the open one and the warm window.
-- Escape goes through a small layer stack (`src/layer/layer-stack.ts`). The tooltip and the popover share it, so one Escape closes one layer. Menus will use it too.
+- Escape goes through a small layer stack (`src/layer/layer-stack.ts`). The tooltip, the popover, and the menu share it, so one Escape closes one layer.
 
 All four components live in `src/tooltip/tooltip.tsx`, one region each, with their CSS in `tooltip.css` under the same region labels. Import them from `native-popovers/tooltip`. The placement type and list are in `native-popovers/placement` (`src/layer/placement.ts`), shared with the popover. There is no index barrel.
 
@@ -106,7 +106,7 @@ Every `ref` prop may change between renders, including an inline callback ref. T
 
 `variant` stays in the app. It is only a class name.
 
-Do not add these in v1: `store`, `virtualFocus`, `getAnchorRect`, `updatePosition`, `showTimeout`, `hideTimeout`, `shift`, `flip`, `sameWidth`.
+Do not add these to the tooltip: `store`, `virtualFocus`, `getAnchorRect`, `updatePosition`, `showTimeout`, `hideTimeout`, `shift`, `flip`, `sameWidth`.
 
 ## Styling
 
@@ -172,10 +172,13 @@ Ariakit is the behavior reference. These are checked in `e2e/tooltip.spec.ts`:
 Checked with Playwright's Chromium 153, WebKit 26.6, and Firefox 155. Chromium passes everything. The e2e tests skip these known gaps, each with a one-line reason:
 
 - WebKit and Firefox have no anchored container queries. The arrow stays on the requested side after a flip.
-- Firefox places RTL `self-*` position areas on the wrong side. In RTL, a tooltip can land on the opposite side or off screen. LTR is fine.
+- Firefox places RTL `self-*` position areas on the wrong side. In RTL, a tooltip or a menu can land on the opposite side or off screen. LTR is fine.
 - Firefox does not apply `position-visibility: anchors-visible` to a top-layer popover. The tooltip stays visible while its anchor is scrolled out of view.
 - WebKit still reads `anchor()` through a transformed content box. The arrow then points at the anchor instead of falling back to the center.
 - WebKit's Tab skips links by default, like Safari. The link test focuses the link directly there.
+- Firefox anchor positioning ignores a `transform` on an ancestor of the anchor ([mozilla/standards-positions#1302](https://github.com/mozilla/standards-positions/issues/1302)). A menu anchored to an element inside a transformed container, like a virtualized row, lands where the element would be without the transform. The pointer anchor of a context menu is in `body`, so a right click is fine.
+
+Only Chromium sends a `contextmenu` event after Shift+F10 or the ContextMenu key. It has `button` -1 and goes to the focused element. The context menu trigger opens like the key for it, and an open menu prevents it, so the browser menu does not open on top.
 
 Safari does not focus a button, checkbox, or radio on click unless it has an explicit `tabIndex`. Like Ariakit's `Focusable`, the anchor sets `tabIndex={0}` on those elements in Safari. Without it, a click would not focus the anchor, so the next key press could not open the tip. `PopoverDisclosure` does the same.
 
@@ -233,6 +236,62 @@ Ariakit is the behavior reference. These are checked in `e2e/popover.spec.ts`:
 - No hidden dismiss button and no `modal` mode.
 - `position-visibility` is not set: the popover can hold focus, so it stays visible while its trigger is scrolled away, like Ariakit.
 
+## Menu
+
+`src/menu/menu.tsx` is a WAI-ARIA menu with submenus and a context menu mode. It is built like the popover: one plain controller per menu level (`src/menu/menu-controller.ts`), `popover="manual"`, `showPopover({ source })`, and CSS anchor positioning. Import it from `native-popovers/menu`.
+
+The names match the Ariakit pieces that `MyMenu` and `MyContextMenu` use:
+
+- `MenuProvider` — `placement`, `open`, `setOpen`, `children`. A `MenuProvider` inside a `Menu` makes a submenu.
+- `MenuButton` — `render` (an element or a function), `children`, and any HTML props. For a submenu item, render it as a `MenuItem`: `<MenuButton render={<MenuItem />}>Color</MenuButton>`.
+- `Menu` — `children`, `gutter`, `shift`, `overflowPadding`, `unmountOnHide`, `portal`, `portalElement`, and any div props for the content
+- `MenuItem` — `render`, `children`, `disabled`, `hideOnClick`, and any HTML props
+- `MenuItemCheckbox` — `checked`, plus the `MenuItem` props
+- `MenuGroup` and `MenuGroupLabel` — div props. A label inside a group names the group.
+- `ContextMenuTrigger` — `render`, `children`, and any HTML props. It opens the menu of its `MenuProvider`.
+
+Defaults follow Ariakit: `placement` is `bottom-start`, or `right-start` for a submenu. `gutter` and `shift` are `0`, `overflowPadding` is `8`, and `unmountOnHide` is `false`. `hideOnClick` is `true`, and `false` on `MenuItemCheckbox`. `portal` and `portalElement` are accepted and ignored.
+
+`Menu` renders `np-MenuPositioner` (the popover element) and `np-Menu` (the content, `role="menu"`). The content has `data-side`, `data-align`, `data-open`, and `data-enter`, like the popover. The active item has `data-active-item`. `shift` is a margin on the aligned edge, so a flip mirrors it, like Floating UI. Centered placements ignore it.
+
+Focus is virtual, like Ariakit: DOM focus stays on `role="menu"`, and the controller writes `aria-activedescendant` and `data-active-item`. Items have `tabIndex={-1}` and never take DOM focus. So hover and key presses render nothing. Only `Menu` subscribes to the controller. The controller writes the button's `aria-expanded` and `aria-controls` to the DOM. The content gets `aria-labelledby` pointing at the button when it has no `aria-label` or `aria-labelledby` of its own.
+
+Pure helpers have unit tests: `menu-typeahead.ts` (Ariakit's typeahead rule) and `menu-grace.ts` (the Radix grace polygon).
+
+### Behavior
+
+Ariakit is the behavior reference, with the changes listed below. These are checked in `e2e/menu.spec.ts`:
+
+- A click on the button opens the menu with focus on it and no active item. Enter, Space, and ArrowDown open it with the first item active. ArrowUp opens it with the last one. The open keys follow the placement: a `right-start` button opens with ArrowRight.
+- A second click closes. The button click never closes and reopens.
+- Arrow keys, Home, End, PageUp, and PageDown move the active item. They do not loop, and they skip disabled items. Keys in a long menu never scroll the page.
+- Typeahead: letters and digits move to the next item that starts with them. Accents are ignored. A repeated letter cycles. The search resets after 500 ms. Disabled items never match.
+- Enter (on keydown), Space (on keyup), and a click run the item and close every level. Focus goes back to the root button. `hideOnClick={false}` keeps the menu open. A checkbox item toggles `aria-checked` and stays open. A disabled item does nothing. Ctrl, Cmd, or Alt+click on a link item keeps the menu open.
+- Escape closes one level. Focus goes to the parent menu, with the submenu item active, or to the button.
+- Tab closes and moves focus past the button. Shift+Tab moves focus to the button and keeps the menu open.
+- An outside click closes every level, and focus stays where the user clicked. A right click or a focus move outside closes it too.
+- Hover moves the active item. A touch never hovers: a tap is a click. Hover does not scroll the menu. A pointer on the padding clears the active item.
+- A press on the menu padding keeps DOM focus on the menu.
+- Submenus: ArrowRight or Enter on a submenu item opens it with the first item active. ArrowLeft closes it. In RTL the arrows swap. Hover opens it after 150 ms, and focus stays in the parent. A click opens it at once and never closes it.
+- A diagonal move from the submenu item toward the submenu keeps it open, even across other items: for 300 ms, other items ignore the pointer while it moves inside the grace area toward the submenu. The grace area also works when the submenu flipped.
+- Leaving closes a submenu: when the pointer moves onto another item of the same level, not toward the submenu or after the 300 ms grace, the submenu closes. Moving the pointer off every menu keeps it open.
+- One open submenu per level. A scroll of a level closes its submenu. A click on a level outside its items closes its submenu.
+- Context menu: a right click opens the menu at the pointer, focused, with no active item. Shift+F10 and the ContextMenu key open it at the focused element inside the trigger, with the first item active. Near the viewport edges it flips and stays inside. A second right click moves the open menu. Shift+right click keeps the browser menu. The window losing focus closes it. Focus goes back to the trigger.
+- A tooltip on an item closes first on Escape. An item that opens a native `<dialog>` or an Ariakit dialog closes the menu first, and the dialog returns focus to the button. Inside a modal dialog, Escape closes the menu first and the dialog stays open.
+- Placement and offsets match Ariakit within 0.5px for the placements the app uses. Every placement lands on its side.
+- A controlled parent can refuse a change. `setOpen` still runs. StrictMode works: one click gives one open.
+
+### Differences from Ariakit
+
+- Escape closes one level, not every level (WAI-ARIA).
+- A diagonal move into a submenu keeps it open. Ariakit's grace area is off in the app.
+- A hover on another item of the same level closes the open submenu. There is no hover-out timer, so `hideOnHoverOutside` is not needed.
+- A keyboard open of a context menu makes the first item active.
+- The context menu opens exactly at the pointer, and a `bottom-end` menu lines up exactly with the button's end edge.
+- The pointer anchor is a 0×0 `position: fixed` span in `body`, not `getAnchorRect`. A transformed row cannot move it.
+- The menu keeps its DOM parent, so it inherits text styles from there. Give the content its own font and color.
+- No `store`, `virtualFocus`, `getAnchorRect`, radio items, menubar, modal menu, or long press for touch.
+
 ## Performance
 
 `src/tooltip/tooltip-perf.stories.tsx` renders 1000 rows with the same JSX for this library and for Ariakit. Production build, headless Chromium, median of 5 runs, 3 tooltips per row (like a Files sidebar row):
@@ -256,11 +315,11 @@ vp env exec pnpm exec playwright test
 vp env exec pnpm exec playwright test --project=chromium
 ```
 
-Playwright starts Storybook. The first command runs Playwright's own Chromium, WebKit, and Firefox. The second runs Chromium only. Do not use the signed-in Edge profile. Touch and pen checks use CDP input, so they run in Chromium only.
+Playwright starts Storybook, and `e2e/warm-up.ts` loads one story of each file before the tests. After a source change, the first load waits while Vite compiles, and without the warm-up the first test of each worker can time out. The first command runs Playwright's own Chromium, WebKit, and Firefox. The second runs Chromium only. Do not use the signed-in Edge profile. Touch and pen checks use CDP input, so they run in Chromium only.
 
-Every story in `src/tooltip/tooltip.stories.tsx` and `src/popover/popover.stories.tsx` is a manual check too. `ManyRows` mounts 1000 anchors for a performance check. `AriakitParity` shows each native popover next to an Ariakit one with the same placement and gutter.
+Every story in `src/tooltip/tooltip.stories.tsx`, `src/popover/popover.stories.tsx`, and `src/menu/menu.stories.tsx` is a manual check too. `ManyRows` mounts 1000 anchors for a performance check. `AriakitParity` shows each native popover next to an Ariakit one with the same placement and gutter.
 
-Unit tests cover the placement map:
+Unit tests cover the placement map, the menu typeahead, and the grace area:
 
 ```sh
 vp env exec pnpm test
@@ -297,7 +356,7 @@ This repo is a t3-chat submodule at `packages/native-popovers`. It is not publis
 - The link and comment popovers sit inside the Tiptap bubble menu, and the bubble hides itself on Escape. Its Escape handlers in `file-editor-rich-text.tsx` skip a press when a layer already used it (`defaultPrevented`), or when a popover in the bubble still has `data-open`.
 - The notifications and chat jobs popovers do not read `--popover-available-width`. `overflowPadding` keeps them 8px from the viewport edge.
 
-Menus are a later pass. A context menu should use a real 1px element at the pointer, not `getAnchorRect`.
+`MyMenu` and `MyContextMenu` still use Ariakit. They move to `native-popovers/menu` next.
 
 ## Reference submodules
 
