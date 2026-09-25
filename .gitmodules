@@ -7,3 +7,11 @@
 [submodule "references/astryx"]
 	path = references/astryx
 	url = https://github.com/facebook/astryx.git
+[submodule "references/base-ui"]
+	path = references/base-ui
+	url = https://github.com/mui/base-ui.git
+	shallow = true
+[submodule "references/radix-primitives"]
+	path = references/radix-primitives
+	url = https://github.com/radix-ui/primitives.git
+	shallow = true
