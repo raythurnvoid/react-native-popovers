@@ -249,10 +249,11 @@ The names match the Ariakit pieces that `MyMenu` and `MyContextMenu` used:
 - `Menu` — `children`, `gutter`, `shift`, `overflowPadding`, `unmountOnHide`, `portal`, `portalElement`, and any div props for the content.
 - `MenuItem` — `render`, `children`, `disabled`, `hideOnClick`, and any HTML props.
 - `MenuItemCheckbox` — `checked`, plus the `MenuItem` props.
+- `MenuItemRadio` — `checked`, plus the `MenuItem` props. One choice of a set. When a menu has more than one set, put each in its own `MenuGroup`.
 - `MenuGroup` and `MenuGroupLabel` — div props. A label inside a group names the group.
 - `ContextMenuTrigger` — `render`, `children`, and any HTML props. It opens the menu of its `MenuProvider`.
 
-Defaults follow Ariakit: `placement` is `bottom-start`, or `right-start` for a submenu. `gutter` and `shift` are `0`, `overflowPadding` is `8`, and `unmountOnHide` is `false`. `hideOnClick` is `true`, and `false` on `MenuItemCheckbox`. `portal` and `portalElement` are accepted and ignored.
+Defaults follow Ariakit: `placement` is `bottom-start`, or `right-start` for a submenu. `gutter` and `shift` are `0`, `overflowPadding` is `8`, and `unmountOnHide` is `false`. `hideOnClick` is `true`, and `false` on `MenuItemCheckbox` and `MenuItemRadio`. `portal` and `portalElement` are accepted and ignored.
 
 `Menu` renders `np-MenuPositioner` (the popover element) and `np-Menu` (the content, `role="menu"`). The content has `data-side`, `data-align`, `data-open`, and `data-enter`, like the popover. The active item has `data-active-item`. `shift` is a margin on the aligned edge, so a flip mirrors it, like Floating UI. Centered placements ignore it.
 
@@ -267,8 +268,8 @@ Ariakit is the behavior reference, with the changes listed below. These are chec
 - A click on the button opens the menu with focus on it and no active item. Enter, Space, and ArrowDown open it with the first item active. ArrowUp opens it with the last one. The open keys follow the placement: a `right-start` button opens with ArrowRight (ArrowLeft in RTL, where it opens on the left).
 - A second click closes. The button click never closes and reopens.
 - Arrow keys, Home, End, PageUp, and PageDown move the active item. They do not loop, and they skip disabled items. Keys in a long menu never scroll the page.
-- Typeahead: letters and digits move to the next item that starts with them. Accents are ignored. A repeated letter cycles. The search resets after 500 ms. Disabled items never match.
-- Enter (on keydown), Space (on keyup), and a click run the item and close every level. Focus goes back to the root button. `hideOnClick={false}` keeps the menu open. A checkbox item toggles `aria-checked` and stays open. A disabled item does nothing. Ctrl, Cmd, or Alt+click on a link item keeps the menu open.
+- Typeahead: letters and digits move to the next item that starts with them. Accents are ignored. A repeated letter cycles. The search resets after 500 ms. Disabled items never match. Text inside an `aria-hidden="true"` element does not count, so a hidden icon or sample letter before the name does not block the name.
+- Enter (on keydown), Space (on keyup), and a click run the item and close every level. Focus goes back to the root button. `hideOnClick={false}` keeps the menu open. A checkbox item toggles `aria-checked` and stays open. A radio item stays open too, and the caller moves `checked` to it. A disabled item does nothing. Ctrl, Cmd, or Alt+click on a link item keeps the menu open.
 - Escape closes one level. Focus goes to the parent menu, with the submenu item active, or to the button.
 - Tab closes and moves focus past the button. It also closes when focus lands on a button inside a context menu trigger row, which Chromium and WebKit put right after the menu. Shift+Tab moves focus to the button and keeps the menu open.
 - An outside click closes every level, and focus stays where the user clicked. A right click or a focus move outside closes it too.
@@ -296,7 +297,9 @@ Ariakit is the behavior reference, with the changes listed below. These are chec
 - The menu keeps its DOM parent, so it inherits text styles and the cursor from there, and a pointer over it counts as hover on that parent. Give the content its own font and color.
 - For the same reason, its key events bubble through the trigger's DOM ancestors. Inside a widget that reads keys on its own element (Headless Tree does) or allows only some child roles (a tree, a tablist), render the `Menu` with a React portal into an element outside that widget.
 - The keys skip hidden items (`display: none`). Ariakit can make a hidden item active.
-- No `store`, `virtualFocus`, `getAnchorRect`, radio items, menubar, modal menu, or long press for touch.
+- Typeahead ignores `aria-hidden` text. Ariakit reads all of `textContent`, so an item with a hidden "A" before "Purple" matches "a", not "p".
+- `MenuItemRadio` takes a `checked` prop like `MenuItemCheckbox`. There is no `name` and `value` store.
+- No `store`, `virtualFocus`, `getAnchorRect`, menubar, modal menu, or long press for touch.
 
 ## Performance
 
@@ -362,7 +365,7 @@ This repo is a t3-chat submodule at `packages/native-popovers`. It is not publis
 - The link and comment popovers sit inside the Tiptap bubble menu, and the bubble hides itself on Escape. Its Escape handlers in `file-editor-rich-text.tsx` skip a press when a layer already used it (`defaultPrevented`), or when a popover in the bubble still has `data-open`.
 - The notifications and chat jobs popovers do not read `--popover-available-width`. `overflowPadding` keeps them 8px from the viewport edge.
 
-`MyMenu` renders `MenuProvider`, `MenuButton`, `Menu`, `MenuItem`, `MenuItemCheckbox`, `MenuGroup`, and `MenuGroupLabel`, and `MyContextMenu` adds `ContextMenuTrigger`. `MyMenuPopover` scrolls itself: a scroll area inside the menu would be a Tab stop, or a focusable child that a `role="menu"` may not have.
+`MyMenu` renders `MenuProvider`, `MenuButton`, `Menu`, `MenuItem`, `MenuItemCheckbox`, `MenuItemRadio`, `MenuGroup`, and `MenuGroupLabel`, and `MyContextMenu` adds `ContextMenuTrigger`. `MyMenuPopover` scrolls itself: a scroll area inside the menu would be a Tab stop, or a focusable child that a `role="menu"` may not have.
 
 - `.MyMenuPopover` resets font, weight, and `white-space`, like `.MyTooltipContent`. The menu keeps its DOM parent, so it inherits text styles from there.
 

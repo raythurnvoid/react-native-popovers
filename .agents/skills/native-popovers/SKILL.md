@@ -99,7 +99,7 @@ There is no "close the layers inside" step. When the parent hides, a tooltip ins
 
 ## Menu
 
-`src/menu/menu.tsx` has the regions `context`, `provider`, `button`, `menu`, `item`, `checkbox item`, `group`, `group label`, and `context menu trigger`. `menu.css` has the regions `menu`, `item`, and `context menu trigger`, one per owner, like `tooltip.css`. `src/menu/menu-controller.ts` makes one controller per menu level, with the regions `items`, `submenus`, `show`, `keys`, and `pointer`. A `MenuProvider` inside a `Menu` makes a submenu level, and the submenu gets the parent controller. Pure helpers are in `menu-typeahead.ts` and `menu-grace.ts`, with unit tests next to them.
+`src/menu/menu.tsx` has the regions `context`, `provider`, `button`, `menu`, `item`, `checkbox item`, `radio item`, `group`, `group label`, and `context menu trigger`. `menu.css` has the regions `menu`, `item`, and `context menu trigger`, one per owner, like `tooltip.css`. `src/menu/menu-controller.ts` makes one controller per menu level, with the regions `items`, `submenus`, `show`, `keys`, and `pointer`. A `MenuProvider` inside a `Menu` makes a submenu level, and the submenu gets the parent controller. Pure helpers are in `menu-typeahead.ts` and `menu-grace.ts`, with unit tests next to them.
 
 Only `Menu` subscribes. The controller writes the button's `aria-expanded` and `aria-controls`, the content's `aria-activedescendant`, and the item's `data-active-item` straight to the DOM. The button and the items never render on open, close, hover, or a key.
 

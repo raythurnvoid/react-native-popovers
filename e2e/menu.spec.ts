@@ -541,6 +541,52 @@ test("a checkbox item toggles aria-checked and stays open, by click and by Enter
 	await expect(menu(page, "More options")).toBeFocused();
 });
 
+test("a radio item checks one choice of its set and stays open, by click and by Enter", async ({ page }) => {
+	await openStory(page, "radio");
+	await button(page, "Color").click();
+	const text = page.getByRole("group", { name: "Text", exact: true });
+	const background = page.getByRole("group", { name: "Background", exact: true });
+	const radio = (group: Locator, name: string) => group.getByRole("menuitemradio", { name, exact: true });
+	await expect(radio(text, "Default")).toHaveAttribute("aria-checked", "true");
+	await expect(radio(text, "Purple")).toHaveAttribute("aria-checked", "false");
+
+	await radio(text, "Purple").click();
+	await expect(radio(text, "Purple")).toHaveAttribute("aria-checked", "true");
+	await expect(radio(text, "Default")).toHaveAttribute("aria-checked", "false");
+	// The other set keeps its own choice.
+	await expect(radio(background, "Default")).toHaveAttribute("aria-checked", "true");
+	await expect(menu(page, "Color")).toBeFocused();
+
+	// The click left Purple active. ArrowDown moves to Red, and Enter checks it.
+	await page.keyboard.press("ArrowDown");
+	await page.keyboard.press("Enter");
+	await expect(radio(text, "Red")).toHaveAttribute("aria-checked", "true");
+	await expect(radio(text, "Purple")).toHaveAttribute("aria-checked", "false");
+	await expect(menu(page, "Color")).toBeFocused();
+});
+
+test("typeahead skips aria-hidden text, so p reaches Purple past a hidden sample letter", async ({ page }) => {
+	await page.clock.install();
+	await openStory(page, "radio");
+	await pauseClock(page);
+	await button(page, "Color").click();
+	const activeIn = (group: string) =>
+		page.getByRole("group", { name: group, exact: true }).locator("[data-active-item]");
+
+	// Every item text starts with the hidden "A". Only the visible name counts.
+	await page.keyboard.press("p");
+	await expect(activeIn("Text")).toHaveAccessibleName("Purple");
+	await page.keyboard.press("p");
+	await expect(activeIn("Text")).toHaveAccessibleName("Pink");
+	await page.keyboard.press("p");
+	await expect(activeIn("Background")).toHaveAccessibleName("Purple");
+
+	// "a" only matches the hidden letter, so the active item stays.
+	await page.clock.runFor(501);
+	await page.keyboard.press("a");
+	await expect(activeIn("Background")).toHaveAccessibleName("Purple");
+});
+
 test("a link item keeps role menuitem, even disabled, and a click follows it and closes", async ({ page }) => {
 	await openStory(page, "link-item");
 	await button(page, "Chat").click();

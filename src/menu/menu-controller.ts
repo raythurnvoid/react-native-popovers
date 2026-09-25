@@ -57,7 +57,7 @@ type Shown = {
 	hide: () => void;
 };
 
-const ITEM_SELECTOR = '[role="menuitem"],[role="menuitemcheckbox"]';
+const ITEM_SELECTOR = '[role="menuitem"],[role="menuitemcheckbox"],[role="menuitemradio"]';
 
 /**
  * How long the pointer rests on a submenu item before the submenu opens (Ariakit and Astryx).
@@ -84,6 +84,25 @@ function is_node(target: EventTarget | null): target is Node {
 
 function is_element(target: EventTarget | null): target is Element {
 	return is_node(target) && target.nodeType === 1;
+}
+
+/**
+ * The item text that typeahead matches: the text outside `aria-hidden="true"` elements. Ariakit
+ * reads all of `textContent`, so a hidden icon or sample letter ("A" before "Purple") becomes the
+ * first letter, and "p" never reaches Purple. The hidden text is not part of the item's name either.
+ */
+function typeahead_text(item: Element) {
+	let text = "";
+	const walker = item.ownerDocument.createTreeWalker(item, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
+		acceptNode: (node) =>
+			is_element(node) && node.getAttribute("aria-hidden") === "true"
+				? NodeFilter.FILTER_REJECT
+				: NodeFilter.FILTER_ACCEPT,
+	});
+	for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+		if (node.nodeType === Node.TEXT_NODE) text += node.nodeValue ?? "";
+	}
+	return text;
 }
 
 /**
@@ -489,7 +508,7 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 		}
 
 		const list = enabledItems();
-		const texts = list.map((item) => menu_typeahead_normalize(item.textContent ?? ""));
+		const texts = list.map((item) => menu_typeahead_normalize(typeahead_text(item)));
 		const next = menu_typeahead_next(texts, activeItem ? list.indexOf(activeItem) : -1, typeaheadBuffer, event.key);
 		typeaheadBuffer = next.buffer;
 		typeaheadTimer = setTimeout(() => {

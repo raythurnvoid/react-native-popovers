@@ -16,6 +16,7 @@ import {
 	MenuGroupLabel,
 	MenuItem,
 	MenuItemCheckbox,
+	MenuItemRadio,
 	MenuProvider,
 	type MenuProps,
 	type MenuProviderProps,
@@ -155,6 +156,51 @@ export const Checkbox: Story = {
 					<MenuItemCheckbox className="story-MenuItem" checked={checked} onClick={() => setChecked((value) => !value)}>
 						<span aria-hidden="true">{checked ? "☑" : "☐"}</span> Show archived items
 					</MenuItemCheckbox>
+				</Drop>
+				<button type="button">After</button>
+			</div>
+		);
+	},
+};
+
+const STORY_COLORS = ["Default", "Purple", "Red", "Pink"];
+
+export const Radio: Story = {
+	render: function Render() {
+		const [color, setColor] = useState("Default");
+		const [background, setBackground] = useState("Default");
+
+		// Like t3-chat's block menu Color submenu: two sets with the same names, each in its own group,
+		// and a sample letter marked aria-hidden before each name.
+		return (
+			<div className="story-row">
+				<Drop label="Color">
+					<MenuGroup className="story-MenuGroup">
+						<MenuGroupLabel className="story-MenuLabel">Text</MenuGroupLabel>
+						{STORY_COLORS.map((name) => (
+							<MenuItemRadio
+								key={name}
+								className="story-MenuItem"
+								checked={color === name}
+								onClick={() => setColor(name)}
+							>
+								<span aria-hidden="true">A</span> {name}
+							</MenuItemRadio>
+						))}
+					</MenuGroup>
+					<MenuGroup className="story-MenuGroup">
+						<MenuGroupLabel className="story-MenuLabel">Background</MenuGroupLabel>
+						{STORY_COLORS.map((name) => (
+							<MenuItemRadio
+								key={name}
+								className="story-MenuItem"
+								checked={background === name}
+								onClick={() => setBackground(name)}
+							>
+								<span aria-hidden="true">A</span> {name}
+							</MenuItemRadio>
+						))}
+					</MenuGroup>
 				</Drop>
 				<button type="button">After</button>
 			</div>

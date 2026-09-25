@@ -502,6 +502,30 @@ export const MenuItemCheckbox = memo(function MenuItemCheckbox(props: MenuItemCh
 });
 // #endregion checkbox item
 
+// #region radio item
+export type MenuItemRadioProps = Omit<MenuItemProps, "hideOnClick"> & {
+	/**
+	 * Whether this is the chosen item of its set. The caller changes it in `onClick`.
+	 */
+	checked: boolean;
+	/**
+	 * Close every menu level after a click.
+	 * @default false
+	 */
+	hideOnClick?: boolean;
+};
+
+/**
+ * A `role="menuitemradio"` item: one choice of a set, like Ariakit. Put each set in its own
+ * `MenuGroup` when a menu has more than one. It stays open after a click by default, like Ariakit.
+ */
+export const MenuItemRadio = memo(function MenuItemRadio(props: MenuItemRadioProps) {
+	const { checked, hideOnClick = false, ...rest } = props;
+
+	return <MenuItem role="menuitemradio" aria-checked={checked} hideOnClick={hideOnClick} {...rest} />;
+});
+// #endregion radio item
+
 // #region group
 // The group's label id setter, so a MenuGroupLabel can name its group.
 const MenuGroupContext = createContext<((id: string | null) => void) | null>(null);
