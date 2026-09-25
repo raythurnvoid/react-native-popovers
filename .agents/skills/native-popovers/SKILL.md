@@ -125,6 +125,7 @@ Context menu:
 - `openAt(trigger, at)` anchors to a 0×0 `position: fixed` span (`np-MenuPoint`) in `body`, so a transformed row cannot move it. A second `openAt` moves the anchor name without hiding the menu. A key open (`at` null) anchors to the focused element inside the trigger.
 - Chromium sends a `contextmenu` event with `button` -1 after Shift+F10 and the ContextMenu key. The trigger treats it as a key open. The menu content prevents it, so the browser menu does not open on top of ours.
 - A provider with a `ContextMenuTrigger` closes on window blur.
+- `writeAria` names the menu from the element that opened it: the trigger when it has an id, else the button. Ariakit does the same through its disclosure element.
 
 StrictMode detaches and attaches refs. `setPositioner(null)` and `registerButton(null)` sync in a microtask, so a ref swap does not hide and show the menu.
 

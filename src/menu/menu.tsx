@@ -146,7 +146,7 @@ const BUTTON_OPEN_KEYS: Record<string, Partial<Record<string, "keyboard-first" |
  * a click opens it and never closes it, and the parent menu handles the keys.
  */
 export const MenuButton = memo(function MenuButton(props: MenuButtonProps) {
-	const { ref, render, children, ...rest } = props;
+	const { ref, id, render, children, ...rest } = props;
 	const menu = useMenuContext("MenuButton");
 	const renderElement = isValidElement<Record<string, unknown>>(render) ? render : null;
 	const element = useRef<HTMLElement | null>(null);
@@ -183,8 +183,9 @@ export const MenuButton = memo(function MenuButton(props: MenuButtonProps) {
 	});
 
 	const merged = merge_render_props(
-		// Like Ariakit, add the button type only to the default button.
-		{ id: generatedId, "aria-haspopup": "menu", ...(render ? {} : { type: "button" }), ...rest, children },
+		// Like Ariakit, add the button type only to the default button. A wrapper can pass `id={undefined}`,
+		// so fall back to the generated id: the menu takes its name from this id.
+		{ id: id ?? generatedId, "aria-haspopup": "menu", ...(render ? {} : { type: "button" }), ...rest, children },
 		render,
 		BUTTON_EVENT_NAMES,
 		handleEvent,

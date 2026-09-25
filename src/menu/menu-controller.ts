@@ -134,7 +134,7 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 	// The last pointer point on an item. When it was the item of the open submenu, the grace area starts there.
 	let lastItemPoint: { item: HTMLElement; point: Point } | null = null;
 	let grace: { side: "left" | "right"; polygon: Point[]; timer: ReturnType<typeof setTimeout> } | null = null;
-	// The button id that the content's `aria-labelledby` points at, when this controller wrote it.
+	// The trigger or button id that the content's `aria-labelledby` points at, when this controller wrote it.
 	let labelledBy: string | null = null;
 
 	function notify() {
@@ -174,21 +174,27 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 	}
 
 	/**
-	 * Write the button's aria attributes. React does not own them, so the button does not render on
-	 * open or close.
+	 * Write the button's aria attributes and the menu's name. React does not own them, so the button does not
+	 * render on open or close.
 	 */
-	function writeButtonAria() {
-		if (!button) return;
-		button.setAttribute("aria-expanded", open ? "true" : "false");
-		// Like Ariakit, point at the menu only while it is in the DOM.
-		if (content?.id) button.setAttribute("aria-controls", content.id);
-		else button.removeAttribute("aria-controls");
-		// The button names the menu, like Ariakit, unless the caller named it. A new button element
-		// has a new id, so update a name that this controller wrote.
+	function writeAria() {
+		if (button) {
+			// Like Ariakit, only the element that opened the menu is expanded. A context menu open leaves
+			// the button of the same menu collapsed.
+			button.setAttribute("aria-expanded", open && !context ? "true" : "false");
+			// Like Ariakit, point at the menu only while it is in the DOM.
+			if (content?.id) button.setAttribute("aria-controls", content.id);
+			else button.removeAttribute("aria-controls");
+		}
+		// The element that opened the menu names it, like Ariakit, unless the caller named it. That is the
+		// context menu trigger when it has an id, else the button. A new element has a new id, so update
+		// a name that this controller wrote, and remove it when neither the trigger nor the button has an id.
+		const labelId = context?.disclosure.id || button?.id || null;
 		const current = content?.getAttribute("aria-labelledby") ?? null;
-		if (content && button.id && !content.hasAttribute("aria-label") && (current === null || current === labelledBy)) {
-			content.setAttribute("aria-labelledby", button.id);
-			labelledBy = button.id;
+		if (content && !content.hasAttribute("aria-label") && (current === null || current === labelledBy)) {
+			if (labelId) content.setAttribute("aria-labelledby", labelId);
+			else content.removeAttribute("aria-labelledby");
+			labelledBy = labelId;
 		}
 	}
 
@@ -434,7 +440,7 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 			parent?.childClosed(menu);
 		}
 
-		writeButtonAria();
+		writeAria();
 		sync();
 		if (!value && context) {
 			context = null;
@@ -757,6 +763,8 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 			}
 			context = { anchor: nextAnchor, disclosure: trigger };
 			sync();
+			// An open menu does not run the open steps again, so name it from the new trigger here.
+			writeAria();
 			request(true, at ? "pointer" : "keyboard-first");
 		},
 		/**
@@ -772,6 +780,7 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 			pointAnchor?.remove();
 			pointAnchor = null;
 			sync();
+			writeAria();
 			request(true, reason);
 		},
 		registerContextTrigger() {
@@ -787,7 +796,7 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 			if (element) {
 				button = element;
 				parent?.registerChild(element, menu);
-				writeButtonAria();
+				writeAria();
 				sync();
 				return;
 			}
@@ -815,7 +824,7 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 		setContent(element: HTMLElement | null) {
 			if (!element) setActive(null, false);
 			content = element;
-			writeButtonAria();
+			writeAria();
 		},
 		registerChild(item: HTMLElement, child: MenuLevel) {
 			children.set(item, child);
@@ -867,7 +876,7 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 			pointAnchor = null;
 			context = null;
 			sync();
-			writeButtonAria();
+			writeAria();
 			notify();
 		},
 	};

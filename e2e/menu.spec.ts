@@ -659,6 +659,12 @@ test("a menu with its own aria-labelledby keeps it", async ({ page }) => {
 	await expect(menu(page, "Recent files")).toBeFocused();
 	await expect(menu(page, "Recent files")).toHaveAttribute("aria-labelledby", "story-own-label");
 });
+
+test("a button that gets id={undefined} still names its menu", async ({ page }) => {
+	await openStory(page, "replaced-button");
+	await button(page, "Wrapped").click();
+	await expect(menu(page, "Wrapped")).toBeFocused();
+});
 // #endregion items
 
 // #region pointer
@@ -1434,6 +1440,34 @@ test("Shift+right click keeps the browser menu and does not open ours", async ({
 	await expect(menu(page, "Actions for bravo")).toBeHidden();
 });
 
+test("a context menu with no button and no label takes its name from the trigger id", async ({ page }) => {
+	await openContextStory(page);
+	await page.getByRole("tab", { name: "notes.md" }).click({ button: "right" });
+	await expect(menu(page, "notes.md")).toBeFocused();
+	await expect(menu(page, "notes.md")).toHaveAttribute("aria-labelledby", "story-tab-notes");
+});
+
+test("a context menu opened from a trigger with no id drops the name of the last trigger", async ({ page }) => {
+	await openContextStory(page);
+	await page.getByRole("tab", { name: "notes.md" }).click({ button: "right" });
+	await expect(menu(page, "notes.md")).toBeFocused();
+	await page.keyboard.press("Escape");
+	await page.getByRole("tab", { name: "todo.md" }).click({ button: "right" });
+	const opened = page.getByRole("menu").filter({ hasText: "Close" });
+	await expect(opened).toBeFocused();
+	await expect(opened).not.toHaveAttribute("aria-labelledby");
+});
+
+test("a right click on the button of an open menu names it from the row around the button", async ({ page }) => {
+	await openContextStory(page);
+	await button(page, "Report actions").click();
+	await expect(menu(page, "Report actions")).toBeFocused();
+	await button(page, "Report actions").click({ button: "right" });
+	await expect(menu(page, "report.md")).toBeFocused();
+	await expect(menu(page, "report.md")).toHaveAttribute("aria-labelledby", "story-row-report");
+	await expect(button(page, "Report actions")).toHaveAttribute("aria-expanded", "false");
+});
+
 test("the ⋮ button opens the same menu below itself; after a right click it anchors to the button again", async ({
 	page,
 }) => {
@@ -1450,8 +1484,12 @@ test("the ⋮ button opens the same menu below itself; after a right click it an
 
 	const target = await box(row(page, "delta"));
 	await page.mouse.click(target.x + 20, target.y + 10, { button: "right" });
+	await expect(menu(page, "Actions for delta")).toBeFocused();
+	// Only the element that opened the menu is expanded, like Ariakit.
+	await expect(more).toHaveAttribute("aria-expanded", "false");
 	await page.keyboard.press("Escape");
 	await more.click();
+	await expect(more).toHaveAttribute("aria-expanded", "true");
 	menuBox = await box(menu(page, "Actions for delta"));
 	expect(Math.abs(menuBox.x - moreBox.x)).toBeLessThanOrEqual(0.5);
 	await expect(page.locator(".np-MenuPoint")).toHaveCount(0);

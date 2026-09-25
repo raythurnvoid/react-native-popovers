@@ -81,7 +81,6 @@
 	:where(.np-Menu:focus) {
 		outline: none;
 	}
-
 	/* #endregion menu */
 
 	/* #region item */

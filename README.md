@@ -242,13 +242,13 @@ Ariakit is the behavior reference. These are checked in `e2e/popover.spec.ts`:
 
 `src/menu/menu.tsx` is a WAI-ARIA menu with submenus and a context menu mode. It is built like the popover: one plain controller per menu level (`src/menu/menu-controller.ts`), `popover="manual"`, `showPopover({ source })`, and CSS anchor positioning. Import it from `native-popovers/menu`.
 
-The names match the Ariakit pieces that `MyMenu` and `MyContextMenu` use:
+The names match the Ariakit pieces that `MyMenu` and `MyContextMenu` used:
 
 - `MenuProvider` — `placement`, `open`, `setOpen`, `children`. A `MenuProvider` inside a `Menu` makes a submenu.
 - `MenuButton` — `render` (an element or a function), `children`, and any HTML props. For a submenu item, render it as a `MenuItem`: `<MenuButton render={<MenuItem />}>Color</MenuButton>`.
-- `Menu` — `children`, `gutter`, `shift`, `overflowPadding`, `unmountOnHide`, `portal`, `portalElement`, and any div props for the content
-- `MenuItem` — `render`, `children`, `disabled`, `hideOnClick`, and any HTML props
-- `MenuItemCheckbox` — `checked`, plus the `MenuItem` props
+- `Menu` — `children`, `gutter`, `shift`, `overflowPadding`, `unmountOnHide`, `portal`, `portalElement`, and any div props for the content.
+- `MenuItem` — `render`, `children`, `disabled`, `hideOnClick`, and any HTML props.
+- `MenuItemCheckbox` — `checked`, plus the `MenuItem` props.
 - `MenuGroup` and `MenuGroupLabel` — div props. A label inside a group names the group.
 - `ContextMenuTrigger` — `render`, `children`, and any HTML props. It opens the menu of its `MenuProvider`.
 
@@ -256,7 +256,7 @@ Defaults follow Ariakit: `placement` is `bottom-start`, or `right-start` for a s
 
 `Menu` renders `np-MenuPositioner` (the popover element) and `np-Menu` (the content, `role="menu"`). The content has `data-side`, `data-align`, `data-open`, and `data-enter`, like the popover. The active item has `data-active-item`. `shift` is a margin on the aligned edge, so a flip mirrors it, like Floating UI. Centered placements ignore it.
 
-Focus is virtual, like Ariakit: DOM focus stays on `role="menu"`, and the controller writes `aria-activedescendant` and `data-active-item`. Items have `tabIndex={-1}` and never take DOM focus. So hover and key presses render nothing. Only `Menu` subscribes to the controller. The controller writes the button's `aria-expanded` and `aria-controls` to the DOM. The content gets `aria-labelledby` pointing at the button when it has no `aria-label` or `aria-labelledby` of its own.
+Focus is virtual, like Ariakit: DOM focus stays on `role="menu"`, and the controller writes `aria-activedescendant` and `data-active-item`. Items have `tabIndex={-1}` and never take DOM focus. So hover and key presses render nothing. Only `Menu` subscribes to the controller. The controller writes the button's `aria-expanded` and `aria-controls` to the DOM. Like Ariakit, the button is expanded only when it opened the menu, not after a right click on its row. The content gets `aria-labelledby` pointing at the element that opened it when it has no `aria-label` or `aria-labelledby` of its own: the `ContextMenuTrigger` when it has an id, else the button. So a context menu with no button, like a chat tab menu, takes its name from the tab.
 
 Pure helpers have unit tests: `menu-typeahead.ts` (Ariakit's typeahead rule) and `menu-grace.ts` (the Radix grace polygon).
 
@@ -293,7 +293,7 @@ Ariakit is the behavior reference, with the changes listed below. These are chec
 - A keyboard open of a context menu makes the first item active.
 - The context menu opens exactly at the pointer, and a `bottom-end` menu lines up exactly with the button's end edge.
 - The pointer anchor is a 0×0 `position: fixed` span in `body`, not `getAnchorRect`. A transformed row cannot move it.
-- The menu keeps its DOM parent, so it inherits text styles from there. Give the content its own font and color.
+- The menu keeps its DOM parent, so it inherits text styles and the cursor from there, and a pointer over it counts as hover on that parent. Give the content its own font and color.
 - For the same reason, its key events bubble through the trigger's DOM ancestors. Inside a widget that reads keys on its own element (Headless Tree does) or allows only some child roles (a tree, a tablist), render the `Menu` with a React portal into an element outside that widget.
 - The keys skip hidden items (`display: none`). Ariakit can make a hidden item active.
 - No `store`, `virtualFocus`, `getAnchorRect`, radio items, menubar, modal menu, or long press for touch.
@@ -362,7 +362,16 @@ This repo is a t3-chat submodule at `packages/native-popovers`. It is not publis
 - The link and comment popovers sit inside the Tiptap bubble menu, and the bubble hides itself on Escape. Its Escape handlers in `file-editor-rich-text.tsx` skip a press when a layer already used it (`defaultPrevented`), or when a popover in the bubble still has `data-open`.
 - The notifications and chat jobs popovers do not read `--popover-available-width`. `overflowPadding` keeps them 8px from the viewport edge.
 
-`MyMenu` and `MyContextMenu` still use Ariakit. They move to `native-popovers/menu` next.
+`MyMenu` renders `MenuProvider`, `MenuButton`, `Menu`, `MenuItem`, `MenuItemCheckbox`, `MenuGroup`, and `MenuGroupLabel`, and `MyContextMenu` adds `ContextMenuTrigger`. `MyMenuPopover` scrolls itself: a scroll area inside the menu would be a Tab stop, or a focusable child that a `role="menu"` may not have.
+
+- `.MyMenuPopover` resets font, weight, and `white-space`, like `.MyTooltipContent`. The menu keeps its DOM parent, so it inherits text styles from there.
+
+Four menus render through a React portal, out of a trigger ancestor that would break them:
+
+- The files tree row menu goes into `.FilesSidebarTree-menus`, right after the tree. A tree may own only its items, and Headless Tree reads keys on the tree element.
+- The agent chat tab menu goes into `#app_hoisting_container`. A tablist may own only tabs.
+- The folder explorer row menu goes into `#app_hoisting_container`. The row reads clipboard keys (Escape, Mod+C, Mod+X, Mod+V) with a native listener, which runs before the menu.
+- The rich text block menu goes next to the editor. The drag handle is a draggable `.MyButton`, so inside it the menu would get its grab cursor and turn on its hover and active styles.
 
 ## Reference submodules
 

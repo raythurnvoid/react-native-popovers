@@ -276,6 +276,13 @@ export const ReplacedButton: Story = {
 						<MenuItem className="story-MenuItem">notes.md</MenuItem>
 					</Menu>
 				</MenuProvider>
+				{/* A wrapper that passes `id={undefined}`, like the t3-chat `MyMenuTrigger`, still names the menu. */}
+				<MenuProvider>
+					<MenuButton id={undefined}>Wrapped</MenuButton>
+					<Menu className="story-Menu">
+						<MenuItem className="story-MenuItem">todo.md</MenuItem>
+					</Menu>
+				</MenuProvider>
 			</div>
 		);
 	},
@@ -543,6 +550,41 @@ export const ContextMenu: Story = {
 						<Row name="zulu" onSelect={add} />
 					</div>
 				</div>
+				{/* Like t3-chat's agent chat tabs: no button and no menu label, so the tab's id names the menu. */}
+				<div role="tablist" aria-label="Chats">
+					<MenuProvider>
+						<ContextMenuTrigger
+							render={
+								<div className="story-tree-row" role="tab" id="story-tab-notes" tabIndex={0} aria-label="notes.md" />
+							}
+						>
+							<span>notes.md</span>
+						</ContextMenuTrigger>
+						{/* A second trigger with no id, in the same provider: the menu must not keep the name notes.md. */}
+						<ContextMenuTrigger
+							render={<div className="story-tree-row" role="tab" tabIndex={0} aria-label="todo.md" />}
+						>
+							<span>todo.md</span>
+						</ContextMenuTrigger>
+						<Menu className="story-Menu">
+							<MenuItem className="story-MenuItem" onClick={() => add("Close tab")}>
+								Close
+							</MenuItem>
+						</Menu>
+					</MenuProvider>
+				</div>
+				{/* A row with an id around a button of the same provider. A right click while the menu is open renames it. */}
+				<MenuProvider>
+					<ContextMenuTrigger render={<div className="story-tree-row" id="story-row-report" aria-label="report.md" />}>
+						<span>report.md</span>
+						<MenuButton render={<button type="button" className="story-more" />}>Report actions</MenuButton>
+					</ContextMenuTrigger>
+					<Menu className="story-Menu">
+						<MenuItem className="story-MenuItem" onClick={() => add("Open report.md")}>
+							Open
+						</MenuItem>
+					</Menu>
+				</MenuProvider>
 				<input className="story-outside" aria-label="Outside input" />
 			</>
 		);
