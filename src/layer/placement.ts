@@ -25,6 +25,11 @@ type Align = "start" | "center" | "end";
  * is the viewport, so plain inline-start would ignore the element's direction.
  * Start alignment spans toward the inline end so the popup's start edge
  * meets the trigger's start edge. This is the same map Astryx uses.
+ *
+ * Firefox quirk (checked in Firefox 155): in RTL, Firefox resolves the self-* keywords to the wrong
+ * side. So an RTL menu, submenu, or tooltip can open on the opposite side, or off screen. LTR is
+ * fine. We keep the logical keywords and add no Firefox-only fallback. The e2e tests skip this case
+ * (see the README browser notes).
  */
 export function placement_position_area(placement: Placement): string {
 	const { side, align } = split_placement(placement);
