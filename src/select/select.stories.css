@@ -1,0 +1,158 @@
+/* Story look only. The library ships layout rules, not a theme. */
+.story-Select {
+	box-sizing: border-box;
+	min-width: 160px;
+	max-height: 240px;
+	padding: 4px;
+	overflow-y: auto;
+
+	border: 1px solid #999;
+	border-radius: 6px;
+
+	background: #fff;
+	color: #111;
+	font:
+		14px/1.4 system-ui,
+		sans-serif;
+	box-shadow: 0 4px 12px rgb(0 0 0 / 0.2);
+}
+
+/* No min-width, so sameWidth decides the width. */
+.story-Select-narrow {
+	min-width: 0;
+}
+
+.story-option {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+	padding: 4px 8px;
+
+	border-radius: 4px;
+
+	cursor: default;
+}
+
+.story-option[data-active-item] {
+	background: #dbeafe;
+}
+
+.story-option[aria-selected="true"] {
+	font-weight: 600;
+}
+
+.story-option[aria-disabled="true"] {
+	opacity: 0.5;
+}
+
+.story-row-option {
+	justify-content: space-between;
+}
+
+.story-group-label {
+	padding: 4px 8px;
+
+	color: #666;
+	font-size: 12px;
+}
+
+.story-separator {
+	margin-top: 4px;
+	padding-top: 4px;
+
+	border-top: 1px solid #ddd;
+}
+
+.story-label {
+	font-size: 12px;
+}
+
+.story-trigger {
+	box-sizing: border-box;
+	width: 240px;
+	padding: 4px 8px;
+
+	text-align: start;
+}
+
+.story-search {
+	box-sizing: border-box;
+	width: 100%;
+	margin-bottom: 4px;
+}
+
+.story-empty {
+	padding: 8px;
+
+	color: #666;
+}
+
+.story-Tooltip {
+	padding: 4px 6px;
+
+	border-radius: 4px;
+
+	background: #1c1c1c;
+	color: #fff;
+	font:
+		13px/1.4 system-ui,
+		sans-serif;
+}
+
+.story-dialog {
+	position: fixed;
+	inset: 80px auto auto 80px;
+	padding: 16px;
+
+	border: 1px solid #999;
+
+	background: #fff;
+}
+
+/* Like t3-chat's .MyModalPopover: centered with a transform, and paint containment. */
+.story-transformed-dialog {
+	position: fixed;
+	top: 50%;
+	left: 50%;
+	padding: 16px;
+
+	border: 1px solid #999;
+
+	background: #fff;
+
+	transform: translate(-50%, -50%);
+	contain: content;
+}
+
+.story-row {
+	display: flex;
+	gap: 16px;
+	align-items: center;
+}
+
+/* Whole-pixel cells, so the native and the Ariakit boxes round the same way. The grid fits a
+   1280 by 720 viewport, so no list needs to flip. */
+.story-parity {
+	display: grid;
+	grid-template-columns: repeat(2, 560px);
+	grid-auto-rows: 160px;
+	padding: 20px 60px;
+}
+
+.story-parity-cell {
+	display: flex;
+	gap: 240px;
+	align-items: center;
+	justify-content: center;
+}
+
+.story-parity-trigger {
+	box-sizing: border-box;
+	width: 48px;
+	height: 24px;
+	padding: 0;
+}
+
+.story-corner {
+	position: fixed;
+}
