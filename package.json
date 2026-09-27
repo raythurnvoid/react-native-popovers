@@ -12,6 +12,7 @@
 		"./menu": "./src/menu/menu.tsx",
 		"./hovercard": "./src/hovercard/hovercard.tsx",
 		"./select": "./src/select/select.tsx",
+		"./combobox": "./src/combobox/combobox.tsx",
 		"./placement": "./src/layer/placement.ts"
 	},
 	"scripts": {

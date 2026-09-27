@@ -1,0 +1,124 @@
+/* Story look only. The library ships layout rules, not a theme. */
+.story-Combobox {
+	box-sizing: border-box;
+	min-width: 180px;
+	max-height: 240px;
+	padding: 4px;
+	overflow-y: auto;
+
+	border: 1px solid #999;
+	border-radius: 6px;
+
+	background: #fff;
+	color: #111;
+	font:
+		14px/1.4 system-ui,
+		sans-serif;
+	box-shadow: 0 4px 12px rgb(0 0 0 / 0.2);
+}
+
+.story-option {
+	padding: 4px 8px;
+
+	border-radius: 4px;
+
+	cursor: default;
+}
+
+.story-option[data-active-item] {
+	background: #dbeafe;
+}
+
+.story-option[aria-disabled="true"] {
+	opacity: 0.5;
+}
+
+.story-group-label {
+	padding: 4px 8px;
+
+	color: #666;
+	font-size: 12px;
+}
+
+.story-label {
+	font-size: 12px;
+}
+
+.story-input-row {
+	display: inline-flex;
+	gap: 4px;
+	align-items: center;
+}
+
+.story-input {
+	box-sizing: border-box;
+	width: 200px;
+	padding: 4px 8px;
+}
+
+.story-inline-list {
+	width: 240px;
+	padding: 4px;
+
+	border: 1px solid #ddd;
+}
+
+.story-details {
+	padding: 4px 8px;
+
+	font-size: 12px;
+}
+
+.story-dialog {
+	position: fixed;
+	inset: 80px auto auto 80px;
+	padding: 16px;
+
+	border: 1px solid #999;
+
+	background: #fff;
+}
+
+.story-row {
+	display: flex;
+	gap: 16px;
+	align-items: center;
+}
+
+.story-column {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.story-scroller {
+	height: 300px;
+	overflow-y: auto;
+
+	border: 1px solid #ddd;
+}
+
+.story-scroller-spacer {
+	height: 400px;
+}
+
+/* Whole-pixel cells, so the native and the Ariakit boxes round the same way. */
+.story-parity {
+	display: grid;
+	grid-template-columns: 1100px;
+	grid-auto-rows: 200px;
+	padding: 20px 60px;
+}
+
+.story-parity-cell {
+	display: flex;
+	gap: 360px;
+	align-items: center;
+	justify-content: center;
+}
+
+.story-parity-input {
+	box-sizing: border-box;
+	width: 160px;
+	height: 28px;
+}

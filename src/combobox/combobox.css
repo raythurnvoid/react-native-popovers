@@ -1,0 +1,85 @@
+/* All rules sit in one layer and use :where(), so any app rule wins over them. An app that uses
+   layers must list native_popovers after its reset layers and before its component layers. */
+@layer native_popovers {
+	/* #region popover */
+	:where(.np-ComboboxPositioner) {
+		/* Use the natural width, like the popover. With auto width, a start or end placement near an
+		   edge wraps its content into the small space left, instead of flipping. */
+		width: max-content;
+
+		position: fixed;
+		inset: auto;
+		position-anchor: var(--np-ComboboxPositioner-anchor);
+		position-area: var(--np-ComboboxPositioner-position-area);
+		position-try-fallbacks: var(--np-ComboboxPositioner-position-try-fallbacks);
+
+		/* Clear the popover UA box. */
+		margin: 0;
+		padding: 0;
+		border: 0;
+		overflow: visible;
+
+		background: transparent;
+		color: inherit;
+
+		/* Only the list takes the pointer, not the gap. */
+		pointer-events: none;
+	}
+
+	/* As wide as the input, like Ariakit's sameWidth. The content still keeps its own min-width. */
+	:where(.np-ComboboxPositioner[data-same-width]) {
+		width: anchor-size(width);
+	}
+
+	/* The gap goes on both edges of the axis that can flip. With one edge, a flip puts it on the far side. */
+	:where(.np-ComboboxPositioner[data-side="top"], .np-ComboboxPositioner[data-side="bottom"]) {
+		margin-block: var(--np-ComboboxPositioner-gutter, 0px);
+	}
+
+	:where(.np-ComboboxPositioner[data-side="left"], .np-ComboboxPositioner[data-side="right"]) {
+		margin-inline: var(--np-ComboboxPositioner-gutter, 0px);
+	}
+
+	/* The overflow padding is a margin on the other axis, on the far edge (see popover.css). */
+	:where(.np-ComboboxPositioner:is([data-side="top"], [data-side="bottom"])[data-align="center"]) {
+		margin-inline: var(--np-ComboboxPositioner-overflow-padding, 0px);
+	}
+
+	:where(.np-ComboboxPositioner:is([data-side="top"], [data-side="bottom"])[data-align="start"]) {
+		margin-inline-end: var(--np-ComboboxPositioner-overflow-padding, 0px);
+	}
+
+	:where(.np-ComboboxPositioner:is([data-side="top"], [data-side="bottom"])[data-align="end"]) {
+		margin-inline-start: var(--np-ComboboxPositioner-overflow-padding, 0px);
+	}
+
+	:where(.np-ComboboxPositioner:is([data-side="left"], [data-side="right"])[data-align="center"]) {
+		margin-block: var(--np-ComboboxPositioner-overflow-padding, 0px);
+	}
+
+	:where(.np-ComboboxPositioner:is([data-side="left"], [data-side="right"])[data-align="start"]) {
+		margin-block-end: var(--np-ComboboxPositioner-overflow-padding, 0px);
+	}
+
+	:where(.np-ComboboxPositioner:is([data-side="left"], [data-side="right"])[data-align="end"]) {
+		margin-block-start: var(--np-ComboboxPositioner-overflow-padding, 0px);
+	}
+
+	/* A modal above the list made it inert (Ariakit marks the tree outside a modal that way). The top
+	   layer would still paint the list above that modal, so hide it until the modal closes. */
+	:where([inert] .np-ComboboxPositioner, .np-ComboboxPositioner[inert]) {
+		visibility: hidden;
+	}
+
+	:where(.np-Combobox) {
+		pointer-events: auto;
+	}
+	/* #endregion popover */
+
+	/* #region item */
+	/* A disabled option ignores the pointer, so hovering it does not make it active. */
+	:where(.np-Combobox, .np-ComboboxList) :where([role="option"][aria-disabled="true"]) {
+		pointer-events: none;
+	}
+	/* #endregion item */
+}
