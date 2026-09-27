@@ -417,7 +417,7 @@ The names match the Ariakit pieces that `MyCombobox` used:
 
 Defaults follow Ariakit: `placement` is `bottom-start`, `gutter` is `0`, `overflowPadding` is `8`, `sameWidth` is `false`, and `unmountOnHide` is `false`. `showOnChange`, `showOnClick`, and `showOnKeyPress` are `true`, and `autoSelect` is `false`. `setValueOnClick` is `true`, and `hideOnClick` is `true` when the option has a `value`. `ComboboxCancel` is out of the Tab order and has the label "Clear input".
 
-`ComboboxPopover` renders `np-ComboboxPositioner` and `np-Combobox`, like the select. DOM focus always stays in the input, which holds `aria-activedescendant`. Only `ComboboxPopover` subscribes to the controller. The controller writes the input's `aria-expanded`, `aria-haspopup`, and `aria-controls`. When the popover holds a `ComboboxList` and other content, it is a `role="dialog"`, and the input points at it with `aria-haspopup="dialog"`, like Ariakit. Otherwise the input points at the listbox.
+`ComboboxPopover` renders `np-ComboboxPositioner` and `np-Combobox`, like the select. DOM focus always stays in the input, which holds `aria-activedescendant`. Only `ComboboxPopover` subscribes to the controller. The controller writes the input's `aria-expanded`, `aria-haspopup`, and `aria-controls`. When the popover has a separate `ComboboxList`, the popover content is a `role="dialog"`, and the input points at it with `aria-haspopup="dialog"`, like Ariakit. When the popover is the list itself, the input points at the listbox.
 
 ### Behavior
 

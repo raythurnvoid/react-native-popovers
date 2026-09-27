@@ -173,7 +173,7 @@ export type ComboboxProps = ComponentPropsWithRef<"input"> & {
  * The input, a `role="combobox"` with `aria-autocomplete="list"`. DOM focus stays here while the arrow
  * keys move the active option (`aria-activedescendant`), and Enter picks it. The controller writes
  * `aria-expanded`, `aria-haspopup`, and `aria-controls`, so the input renders only when its text changes.
- * They point at the popover as a `dialog` when it holds a `ComboboxList` and other content, like Ariakit,
+ * They point at the popover as a `dialog` when it contains a `ComboboxList`, like Ariakit,
  * and at the listbox otherwise.
  */
 export const Combobox = memo(function Combobox(props: ComboboxProps) {
@@ -302,8 +302,8 @@ export type ComboboxPopoverProps = ComponentPropsWithRef<"div"> & {
 };
 
 /**
- * The popup next to the input. It is the `role="listbox"`, or a `role="dialog"` around a
- * `ComboboxList` and other content. It shows in the browser top layer and CSS anchor positioning
+ * The popup next to the input. It is the `role="listbox"`, or a `role="dialog"` when it contains a
+ * `ComboboxList`. It shows in the browser top layer and CSS anchor positioning
  * places it, so it follows the input when the page scrolls.
  *
  * `className`, `style`, and the other div props go to the content element. A wrapper element

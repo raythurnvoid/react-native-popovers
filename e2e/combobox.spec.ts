@@ -79,6 +79,16 @@ test("the input is an editable combobox named by its label, pointing at the list
 	await expect(fruit).toHaveAttribute("aria-expanded", "true");
 	await expect(fruit).toHaveAttribute("aria-controls", (await list.getAttribute("id"))!);
 });
+
+test("a popover with a separate list is a dialog, and the input points at it", async ({ page }) => {
+	await openStory(page, "app-like");
+	const search = input(page, "Search files");
+	await search.click();
+	await expect(listbox(page, "Search suggestions")).toBeVisible();
+	await expect(search).toHaveAttribute("aria-haspopup", "dialog");
+	await expect(search).toHaveAttribute("aria-controls", "app-like-suggestions");
+	await expect(page.getByRole("dialog", { name: "Search filters" })).toBeVisible();
+});
 // #endregion roles
 
 // #region focus and keys
@@ -228,16 +238,6 @@ test("an outside click closes the list and focus stays where the user clicked", 
 	await expect(listbox(page, "Fruit suggestions")).toBeHidden();
 	// WebKit does not focus a button on click (README "Browser notes").
 	if (browserName !== "webkit") await expect(page.getByRole("button", { name: "After" })).toBeFocused();
-});
-
-test("a popover with a list and other content is a dialog, and the input points at it", async ({ page }) => {
-	await openStory(page, "app-like");
-	const search = input(page, "Search files");
-	await search.click();
-	await expect(listbox(page, "Search suggestions")).toBeVisible();
-	await expect(search).toHaveAttribute("aria-haspopup", "dialog");
-	await expect(search).toHaveAttribute("aria-controls", "app-like-suggestions");
-	await expect(page.getByRole("dialog", { name: "Search filters" })).toBeVisible();
 });
 
 test("focus on an element whose aria-controls names the list keeps it open", async ({ page }) => {

@@ -136,8 +136,8 @@ export function createCombobox(initial: ComboboxOptions) {
 	function writeAria() {
 		if (input) {
 			input.setAttribute("aria-expanded", open ? "true" : "false");
-			// Like Ariakit: a popover that holds a `ComboboxList` and other content is a dialog, and the input
-			// points at the dialog. A popover that is the list itself, or an inline list, is the listbox.
+			// A separate `ComboboxList` makes the popover content a dialog, and the input points at that
+			// dialog. When the popover is the list itself, or the list is inline, the input points at the listbox.
 			const dialog = !!positioner && !!list && !!content;
 			input.setAttribute("aria-haspopup", dialog ? "dialog" : "listbox");
 			const controlled = (dialog ? content : listbox())?.id;
