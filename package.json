@@ -10,6 +10,7 @@
 		"./tooltip": "./src/tooltip/tooltip.tsx",
 		"./popover": "./src/popover/popover.tsx",
 		"./menu": "./src/menu/menu.tsx",
+		"./hovercard": "./src/hovercard/hovercard.tsx",
 		"./placement": "./src/layer/placement.ts"
 	},
 	"scripts": {

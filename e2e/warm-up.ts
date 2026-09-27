@@ -12,7 +12,7 @@ export default async function warmUp(config: FullConfig) {
 	const browser = await chromium.launch();
 	const page = await browser.newPage();
 
-	for (const id of ["menu--basic", "popover--basic", "tooltip--hover-delay"]) {
+	for (const id of ["menu--basic", "popover--basic", "tooltip--hover-delay", "hovercard--basic"]) {
 		await page.goto(`${baseURL}/iframe.html?id=${id}&viewMode=story`, { timeout: 180_000 });
 		await page.locator("#storybook-root > *").first().waitFor({ timeout: 180_000 });
 	}

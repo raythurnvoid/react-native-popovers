@@ -1,0 +1,124 @@
+/* All rules sit in one layer and use :where(), so any app rule wins over them. An app that uses
+   layers must list native_popovers after its reset layers and before its component layers. */
+@layer native_popovers {
+	/* #region hovercard */
+	:where(.np-HovercardPositioner) {
+		--np-HovercardPositioner-gap: calc(
+			var(--np-HovercardPositioner-gutter, 0px) + var(--np-ArrowHost-arrow-size, 0px) / 2
+		);
+
+		/* Use the natural width, like Ariakit's popover wrapper. With auto width, a start or end
+		   placement near an edge wraps its content into the small space left, instead of flipping. */
+		width: max-content;
+
+		position: fixed;
+		inset: auto;
+		position-anchor: var(--np-HovercardPositioner-anchor);
+		position-area: var(--np-HovercardPositioner-position-area);
+		position-try-fallbacks: var(--np-HovercardPositioner-position-try-fallbacks);
+		/* No position-visibility here, like the popover: the card can hold focus. */
+
+		/* Clear the popover UA box. The UA overflow: auto would clip the arrow. */
+		margin: 0;
+		padding: 0;
+		border: 0;
+		overflow: visible;
+
+		background: transparent;
+		color: inherit;
+
+		/* Only the content and the gap strips take the pointer. */
+		pointer-events: none;
+	}
+
+	/* The gap goes on both edges of the axis that can flip. With one edge, a flip puts it on the far side. */
+	:where(.np-HovercardPositioner[data-side="top"], .np-HovercardPositioner[data-side="bottom"]) {
+		margin-block: var(--np-HovercardPositioner-gap);
+	}
+
+	:where(.np-HovercardPositioner[data-side="left"], .np-HovercardPositioner[data-side="right"]) {
+		margin-inline: var(--np-HovercardPositioner-gap);
+	}
+
+	/* The overflow padding is a margin on the other axis, on the far edge (see popover.css). */
+	:where(.np-HovercardPositioner:is([data-side="top"], [data-side="bottom"])[data-align="center"]) {
+		margin-inline: var(--np-HovercardPositioner-overflow-padding, 0px);
+	}
+
+	:where(.np-HovercardPositioner:is([data-side="top"], [data-side="bottom"])[data-align="start"]) {
+		margin-inline-end: var(--np-HovercardPositioner-overflow-padding, 0px);
+	}
+
+	:where(.np-HovercardPositioner:is([data-side="top"], [data-side="bottom"])[data-align="end"]) {
+		margin-inline-start: var(--np-HovercardPositioner-overflow-padding, 0px);
+	}
+
+	:where(.np-HovercardPositioner:is([data-side="left"], [data-side="right"])[data-align="center"]) {
+		margin-block: var(--np-HovercardPositioner-overflow-padding, 0px);
+	}
+
+	:where(.np-HovercardPositioner:is([data-side="left"], [data-side="right"])[data-align="start"]) {
+		margin-block-end: var(--np-HovercardPositioner-overflow-padding, 0px);
+	}
+
+	:where(.np-HovercardPositioner:is([data-side="left"], [data-side="right"])[data-align="end"]) {
+		margin-block-start: var(--np-HovercardPositioner-overflow-padding, 0px);
+	}
+
+	/* Two strips fill the gaps, like the tooltip, so a pointer that crosses from the anchor to the card
+	   stays over the card. The hide delay covers a diagonal move outside the strips. */
+	:where(.np-HovercardPositioner)::before,
+	:where(.np-HovercardPositioner)::after {
+		content: "";
+
+		position: absolute;
+
+		pointer-events: auto;
+	}
+
+	:where(.np-HovercardPositioner[data-side="top"], .np-HovercardPositioner[data-side="bottom"])::before,
+	:where(.np-HovercardPositioner[data-side="top"], .np-HovercardPositioner[data-side="bottom"])::after {
+		inset-inline: 0;
+		block-size: var(--np-HovercardPositioner-gap);
+	}
+
+	:where(.np-HovercardPositioner[data-side="top"], .np-HovercardPositioner[data-side="bottom"])::before {
+		inset-block-end: 100%;
+	}
+
+	:where(.np-HovercardPositioner[data-side="top"], .np-HovercardPositioner[data-side="bottom"])::after {
+		inset-block-start: 100%;
+	}
+
+	:where(.np-HovercardPositioner[data-side="left"], .np-HovercardPositioner[data-side="right"])::before,
+	:where(.np-HovercardPositioner[data-side="left"], .np-HovercardPositioner[data-side="right"])::after {
+		inset-block: 0;
+		inline-size: var(--np-HovercardPositioner-gap);
+	}
+
+	:where(.np-HovercardPositioner[data-side="left"], .np-HovercardPositioner[data-side="right"])::before {
+		inset-inline-end: 100%;
+	}
+
+	:where(.np-HovercardPositioner[data-side="left"], .np-HovercardPositioner[data-side="right"])::after {
+		inset-inline-start: 100%;
+	}
+
+	/* A modal above the card made it inert (Ariakit marks the tree outside a modal that way). The top
+	   layer would still paint the card above that modal, so hide it until the modal closes. */
+	:where([inert] .np-HovercardPositioner, .np-HovercardPositioner[inert]) {
+		visibility: hidden;
+	}
+
+	:where(.np-Hovercard) {
+		position: relative;
+
+		pointer-events: auto;
+	}
+
+	/* The card itself takes focus only when it has nothing focusable inside. Do not draw a ring for it. */
+	:where(.np-Hovercard:focus) {
+		outline: none;
+	}
+	/* #endregion hovercard */
+}
