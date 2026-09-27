@@ -27,6 +27,22 @@ async function expectNoTip(page: Page) {
 	expect(await tip(page).count()).toBe(0);
 }
 
+/**
+ * Record every tooltip show and hide in the page. `beforetoggle` fires once per change and is not
+ * merged like `toggle`, so a close followed by a reopen in one task still shows up.
+ */
+async function recordToggles(page: Page) {
+	await page.evaluate(() => {
+		const states: string[] = [];
+		(window as unknown as { toggles: string[] }).toggles = states;
+		document.addEventListener("beforetoggle", (event) => states.push((event as ToggleEvent).newState), true);
+	});
+}
+
+async function toggles(page: Page) {
+	return page.evaluate(() => (window as unknown as { toggles: string[] }).toggles);
+}
+
 async function focusByKeyboard(page: Page, before: string, key = "Tab") {
 	await button(page, before).focus();
 	await page.keyboard.press(key);
@@ -158,11 +174,14 @@ test("a press on the open trigger keeps the tooltip open", async ({ page }) => {
 
 test("StrictMode hover opens one tooltip", async ({ page }) => {
 	await openStory(page, "strict-hover");
+	await recordToggles(page);
 	await button(page, "Save").hover();
 	await expect(tip(page)).toBeVisible({ timeout: 1000 });
 	await expect(page.locator(".np-TooltipPositioner")).toHaveCount(1);
 	await page.mouse.move(5, 5);
 	await expect(tip(page)).toHaveCount(0);
+	// StrictMode attaches the positioner ref twice. The tooltip must not hide and show again.
+	expect(await toggles(page)).toEqual(["open", "closed"]);
 });
 // #endregion open and close
 

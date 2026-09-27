@@ -281,12 +281,15 @@ test("a shifted popover keeps overflowPadding from the viewport edge, like Ariak
 // #region controlled
 test("StrictMode controlled open and close through setOpen", async ({ page }) => {
 	await openStory(page, "strict-controlled");
+	await recordToggles(page);
 	await button(page, "Jobs").click();
 	await expect(dialog(page, "Jobs")).toBeVisible();
 	await expect(dialog(page, "Jobs")).toHaveCount(1);
 	await button(page, "Outside").click();
 	await expect(dialog(page, "Jobs")).toHaveCount(0);
 	await expect(page.getByTestId("requests")).toHaveText("open,closed");
+	// StrictMode attaches the positioner ref twice. The popover must not hide and show again.
+	expect(await toggles(page)).toEqual(["open", "closed"]);
 });
 
 test("a controlled parent can refuse a close, and setOpen still hears it", async ({ page, browserName }) => {

@@ -79,11 +79,15 @@ Outside `pointerdown`, `contextmenu`, and `focusin` close it. When it closes wit
 
 A pending show timer must survive a rerender. Pointer move must not restart it. A pending hide must be cancelled if the pointer comes back.
 
+StrictMode detaches and attaches refs. `setPositioner(null)` syncs in a microtask, so a ref swap does not hide and show the tooltip. The e2e test "StrictMode hover opens one tooltip" checks that `beforetoggle` fires only open and closed.
+
 ## Popover
 
 `src/popover/popover.tsx` has the regions `context`, `provider`, `disclosure`, `popover`, and `dismiss`. `popover.css` uses the same labels. `src/popover/popover-controller.ts` has the tooltip controller's shape: `configure`, `request`, `applyOpen`, and `sync`, with the same controlled contract.
 
 Only `Popover` subscribes. The controller writes the trigger's `aria-expanded` and `aria-controls` straight to the DOM, so the trigger never renders on open or close. Keep that when you add props.
+
+StrictMode detaches and attaches refs. `setPositioner(null)` syncs in a microtask, like the tooltip and the menu, so a ref swap does not hide and show the popover. The e2e test "StrictMode controlled open and close through setOpen" checks that `beforetoggle` fires only open and closed.
 
 The shared render merge (`merge_render_props` and `render_element`) and the Safari tabIndex hook (`useFocusableTabIndex`) are in `src/react-utils.ts`. Focus helpers are in `src/layer/focus.ts`.
 

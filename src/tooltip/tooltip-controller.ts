@@ -238,7 +238,13 @@ export function createTooltip(initial: TooltipOptions) {
 		},
 		setPositioner(element: HTMLElement | null) {
 			positioner = element;
-			sync();
+			if (element) {
+				sync();
+				return;
+			}
+			// StrictMode detaches and attaches a new ref in the same commit. Wait, so the tooltip does not
+			// hide and show again. A real unmount still hides it: the next sync finds no positioner.
+			queueMicrotask(sync);
 		},
 		setContent(element: HTMLElement | null) {
 			content = element;
