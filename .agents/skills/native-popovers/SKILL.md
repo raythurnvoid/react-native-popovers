@@ -1,21 +1,21 @@
 ---
 name: native-popovers
-description: Native tooltip, popover, and menu layer that uses the Popover API and CSS Anchor Positioning. Use when changing the tooltip, the popover, the menu and its submenus or context menu, their Storybook stories, or their Playwright tests.
+description: Native tooltip, popover, menu, hovercard, select, and combobox layer that uses the Popover API and CSS Anchor Positioning. Use when changing any of them (including submenus, the context menu, the search select, and inline row actions), their Storybook stories, or their Playwright tests.
 ---
 
 # native-popovers
 
 ## Decision
 
-This package replaces Ariakit for floating UI, one piece at a time. The tooltip is the foundation. The click popover and the menu are built the same way.
+This package replaces Ariakit for floating UI, one piece at a time. The tooltip is the foundation. The click popover, the menu, the hovercard, the select, and the combobox are built the same way.
 
 Use only the Popover API and CSS Anchor Positioning. Do not add a Floating UI fallback. Do not measure rectangles to place the tooltip or the popover.
 
-The public API is the small set of Ariakit props that t3-chat already passes through `MyTooltip`, `MyPopover`, `MyMenu`, and `MyContextMenu`. It is not a full `@ariakit/react` clone.
+The public API is the small set of Ariakit props that t3-chat already passes through `MyTooltip`, `MyPopover`, `MyMenu`, `MyContextMenu`, `MyHoverCard`, `MySelect`, `MySearchSelect`, and `MyCombobox`. It is not a full `@ariakit/react` clone.
 
 ## Placement
 
-Copy the logical map in `src/layer/placement.ts`. The tooltip, the popover, and the menu share it. It follows Astryx:
+Copy the logical map in `src/layer/placement.ts`. Every layer in this package shares it. It follows Astryx:
 
 - block sides use `self-block-start` or `self-block-end`
 - inline sides use `self-inline-start` or `self-inline-end`
@@ -31,7 +31,7 @@ Append `anchor-name`. Do not replace a name that is already on the trigger.
 
 Set `inset: auto` so the user agent popover inset does not fight the anchor.
 
-Call `showPopover({ source })`. Keep `popover="manual"`. A manual popover does not close on Escape, so the layer stack in `src/layer/layer-stack.ts` handles it. Only the top layer gets the press, and it calls `preventDefault()` so a dialog under it stays open.
+Call `showPopover({ source })`, except in the combobox (see its section). Keep `popover="manual"`. A manual popover does not close on Escape, so the layer stack in `src/layer/layer-stack.ts` handles it. Only the top layer gets the press, and it calls `preventDefault()` so a dialog under it stays open.
 
 Do not set `place-self`. `position-area` already centers.
 
@@ -39,9 +39,9 @@ Do not set `place-self`. `position-area` already centers.
 
 ## Arrow
 
-`TooltipArrow` is `position: fixed` inside the top-layer positioner. That is the only way `anchor()` can read the trigger from inside the tooltip; an absolute element cannot. It uses `anchor()` on the trigger (`--np-TooltipPositioner-anchor`) to point at its center, and on the positioner box (`--np-TooltipPositioner-box`) to stay 4px inside the corners.
+`TooltipArrow` and `HovercardArrow` render the shared `LayerArrow` (`src/layer/arrow.tsx`, CSS in `arrow.css`). It is `position: fixed` inside the top-layer positioner. That is the only way `anchor()` can read the trigger from inside the layer; an absolute element cannot. The positioner has the class `np-ArrowHost` and sets `--np-Arrow-anchor` (the trigger's anchor name) and `--np-Arrow-box` (its own anchor name). The arrow uses `anchor()` on the trigger to point at its center, and on the positioner box to stay 4px inside the corners.
 
-The positioner has `container-type: anchored`. The `@container anchored(fallback: ...)` blocks in `tooltip.css` move the arrow when the browser flips. They must list the fallback values from `placement_position_try_fallbacks` that land on the other side. Change both together.
+The `np-ArrowHost` positioner has `container-type: anchored`. The `@container anchored(fallback: ...)` blocks in `arrow.css` move the arrow when the browser flips. They must list the fallback values from `placement_position_try_fallbacks` that land on the other side. Change both together.
 
 Every `anchor()` has a fallback value. A transform, filter, or paint containment on the content turns off `anchor()` for the arrow, and the fallbacks then center it on the requested side.
 
@@ -49,7 +49,7 @@ The arrow reads the content colors on each open. With no border, it reads a ring
 
 ## Tooltip controller
 
-The components are one module, `src/tooltip/tooltip.tsx`, with a region per component (`context`, `provider`, `anchor`, `tooltip`, `arrow`). `tooltip.css` uses the same labels. Add new tooltip code to the matching region. Keep plain, React-free logic (controller, placement, layer stack) in its own file. The popover and the menu follow the same shape: one component module per widget, and no index barrel.
+The components are one module, `src/tooltip/tooltip.tsx`, with a region per component (`context`, `provider`, `anchor`, `tooltip`, `arrow`). `tooltip.css` uses the same labels. Add new tooltip code to the matching region. Keep plain, React-free logic (controller, placement, layer stack) in its own file. The popover, the menu, the hovercard, the select, and the combobox follow the same shape: one component module per widget, and no index barrel.
 
 `src/tooltip/tooltip-controller.ts` holds the state. It is a plain object made once per `TooltipProvider`, with `configure()` on each render. Only `Tooltip` and `TooltipArrow` subscribe. The anchor must not render on hover or focus. Keep that true when you add props, because it is the reason this layer is fast in long lists.
 
@@ -103,7 +103,7 @@ There is no "close the layers inside" step. When the parent hides, a tooltip ins
 
 ## Menu
 
-`src/menu/menu.tsx` has the regions `context`, `provider`, `button`, `menu`, `item`, `checkbox item`, `radio item`, `group`, `group label`, and `context menu trigger`. `menu.css` has the regions `menu`, `item`, and `context menu trigger`, one per owner, like `tooltip.css`. `src/menu/menu-controller.ts` makes one controller per menu level, with the regions `items`, `submenus`, `show`, `keys`, and `pointer`. A `MenuProvider` inside a `Menu` makes a submenu level, and the submenu gets the parent controller. Pure helpers are in `menu-typeahead.ts` and `menu-grace.ts`, with unit tests next to them.
+`src/menu/menu.tsx` has the regions `context`, `provider`, `button`, `menu`, `item`, `checkbox item`, `radio item`, `group`, `group label`, and `context menu trigger`. `menu.css` has the regions `menu`, `item`, and `context menu trigger`, one per owner, like `tooltip.css`. `src/menu/menu-controller.ts` makes one controller per menu level, with the regions `items`, `submenus`, `show`, `keys`, and `pointer`. A `MenuProvider` inside a `Menu` makes a submenu level, and the submenu gets the parent controller. The grace polygon is in `menu-grace.ts`. The typeahead rule (`src/layer/typeahead.ts`) and the list core (`src/layer/list.ts`: items, the active item, the key steps, the page step) are shared with the select and the combobox. Each pure helper has unit tests next to it.
 
 Only `Menu` subscribes. The controller writes the button's `aria-expanded` and `aria-controls`, the content's `aria-activedescendant`, and the item's `data-active-item` straight to the DOM. The button and the items never render on open, close, hover, or a key.
 
@@ -135,9 +135,49 @@ StrictMode detaches and attaches refs. `setPositioner(null)` and `registerButton
 
 Test timing with `page.clock` and `pauseClock` in `e2e/menu.spec.ts`: install the clock before `openStory`, and step past each boundary (149 and 151 ms, 300 ms, 500 ms).
 
+## Hovercard
+
+`src/hovercard/hovercard.tsx` has the regions `context`, `provider`, `anchor`, `disclosure`, `hovercard`, and `arrow`. `hovercard.css` has `hovercard`. `src/hovercard/hovercard-controller.ts` has the popover controller's shape, plus the tooltip's hover timers.
+
+- Open reasons are `"hover"` and `"disclosure"`. Only a disclosure open writes `aria-expanded="true"` and moves focus into the card (`focusIn`), like Ariakit.
+- The show timer starts on the first anchor pointer move. A press, a scroll, or a key cancels it. The hide timer starts when the pointer leaves the anchor or the card for somewhere that is not inside (`inside` covers the anchor, the disclosure, and the positioner with its gap strips).
+- Escape while hovered sets `pointerBlocked`, so the resting pointer cannot reopen the card. `anchorPointerEnter` clears it.
+- `restoreFocus` runs before hide: to the disclosure, else the anchor, only when focus is inside and the close reason is not `"outside"` or `"focus"`.
+- Only `Hovercard` and `HovercardArrow` subscribe.
+
+## Select
+
+`src/select/select.tsx` has the regions `context`, `provider`, `label`, `trigger`, `popover`, `search`, `list`, `item` (with the attached `SelectItem.useActive`), `group`, and `group label`. `select.css` has `popover`, `item`, and `virtual anchor`. `src/select/select-controller.ts` makes one controller per provider, with the regions `items`, `show`, `value`, `keys`, and `pointer`.
+
+- Two modes. Without `SelectSearch`, the content is the listbox and holds DOM focus and `aria-activedescendant`. With it (`registerSearch`), the content is a dialog, the search input holds focus and `aria-activedescendant`, and `SelectList` is the listbox. The snapshot has `search`, so `SelectPopover` can switch the role.
+- The controller writes `aria-selected` in `registerItem` and after each pick, so a value change renders no option. `registerItem` also runs in a layout effect when an option's value changes on the same node.
+- Key handlers filter by target. The content handler runs only when `event.target === content`, so Enter and Space on a button inside an option run the button. The search handler runs on the input. The trigger handler runs only on the trigger.
+- The content keys do not loop. The search keys loop through the input (`list_step(..., "through-owner")`), and Home and End go to the caret unless an option is active.
+- Enter and Space with no active option close the list. Enter in the search input always calls `preventDefault()`, so it never submits a form.
+- The closed trigger's typeahead reads the mounted options through `list_items`, which works while the positioner is `hidden`. With `unmountOnHide`, there are no options to read, so the closed typeahead does nothing.
+- A closed but mounted positioner gets `hidden`. The controller removes it before `showPopover` and adds it after hide.
+- `inside` also counts `outside_controls([content.id, list.id])`: an element whose `aria-controls` names the list is inside.
+- A pointer anchor for `anchorRect` is a 0×0 `position: fixed` span (`np-SelectPoint`) in `body`, like the context menu.
+- `SelectItem.useActive` (attached to `SelectItem`, so the module exports only components for Fast Refresh) subscribes to `subscribeActive`, which fires only when the active value changes. It is the one caller-facing subscription. No library part may call it. Only `SelectPopover` subscribes to the main snapshot.
+- A MutationObserver on the list (`watchList`) runs `autoSelect` after the caller filters, clears an active option that left the DOM, and writes `aria-selected` on new options. `registerList`, `registerSearch`, and `setContent` call `watchList` again, because a caller can swap the list for a "No results" message and back.
+- With no trigger, `applyOpen(true)` records the focused element, and `restoreFocus` gives focus back to it. `destroy` keeps the close reason only when the close was requested in the same task (`closeRequestedNow`, cleared by a zero timer), so an unmount right after Escape still restores focus, and a much later unmount after a refused close does not.
+
+## Combobox
+
+`src/combobox/combobox.tsx` has the regions `context`, `provider`, `label`, `input`, `popover`, `list`, `item`, `group`, `group label`, and `cancel`. `combobox.css` has `popover` and `item`. `src/combobox/combobox-controller.ts` (regions `items`, `show`, `keys`, `pointer`) shares the list core and the MutationObserver pattern with the select.
+
+- `sync()` calls `showPopover()` without `source`. With `source`, the popup would come right after the input in the Tab order, and Tab would go into it instead of to the next element (a filter button).
+- DOM focus always stays in the input. Enter with an active option is handled in the input's capture phase: `preventDefault()` and `click()` on the option. Enter while open always calls `preventDefault()`.
+- The arrow keys loop through the input. On a closed input they open the list when `showOnKeyPress` is on.
+- `showOnClick` opens on the press (main button, no Ctrl or Cmd), before the release.
+- `ComboboxInPopoverContext` tells a `ComboboxList` whether it sits in a popover. An inline list with no popover keeps the combobox open.
+- `handleListMouseDown` prevents focus moves out of the input, except from a `summary` inside the popup, so a details element there still toggles.
+- `inside` counts `outside_controls` for the content, the list, and the input, so `ComboboxCancel` (its `aria-controls` names the input) is inside.
+- Only `ComboboxPopover` subscribes.
+
 ## Out of scope
 
-Do not implement `store`, a `virtualFocus` prop (menus always use virtual focus), `getAnchorRect`, `updatePosition`, or virtual refs. Do not measure the arrow position in JavaScript; keep it in CSS.
+Do not implement `store`, a `virtualFocus` prop (menus, selects, and comboboxes always use virtual focus), `getAnchorRect`, `updatePosition`, `setValueOnMove`, `moveOnKeyDown`, or virtual refs. Do not measure the arrow position in JavaScript; keep it in CSS.
 
 Do not copy Fluent's scroll measurement observer. Do not vendor the Fluent repo.
 

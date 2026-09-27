@@ -2,7 +2,7 @@
 
 A small React layer for floating UI. It uses the Popover API and CSS Anchor Positioning. It does not use Floating UI.
 
-It has a tooltip, a click popover, and a menu with submenus and a context menu mode.
+It has a tooltip, a click popover, a menu with submenus and a context menu mode, a hovercard, a select (with an optional search input), and an editable combobox.
 
 ## Why this exists
 
@@ -70,7 +70,7 @@ Use `popover="manual"`. Open with `showPopover({ source })`. The popover top lay
 - `getSnapshot` returns a new `{ open, placement }` object on each change, and the components render only from it. Do not read the controller's mutable state during render: the React Compiler caches work on the stable controller object, so such a read can go stale.
 - The anchor gets its `anchor-name` only while its tooltip is open. Idle anchors have no anchor styles at all.
 - All tooltips in one document share a small group: the open one and the warm window.
-- Escape goes through a small layer stack (`src/layer/layer-stack.ts`). The tooltip, the popover, and the menu share it, so one Escape closes one layer.
+- Escape goes through a small layer stack (`src/layer/layer-stack.ts`). Every layer in this package shares it, so one Escape closes one layer.
 
 All four components live in `src/tooltip/tooltip.tsx`, one region each, with their CSS in `tooltip.css` under the same region labels. Import them from `native-popovers/tooltip`. The placement type and list are in `native-popovers/placement` (`src/layer/placement.ts`), shared with the popover. There is no index barrel.
 
@@ -118,7 +118,7 @@ Useful hooks:
 
 - `data-side` and `data-align` on the positioner and the content hold the requested placement.
 - `data-open` is on the content while open. `data-enter` is added one frame later, for an enter transition.
-- `--np-TooltipPositioner-gutter` and `--np-TooltipPositioner-arrow-size` set the gap.
+- `--np-TooltipPositioner-gutter` and `--np-ArrowHost-arrow-size` (written by the arrow) set the gap.
 
 The arrow points at the anchor's center, with no JavaScript measuring:
 
@@ -165,7 +165,7 @@ Ariakit is the behavior reference. These are checked in `e2e/tooltip.spec.ts`:
 - Escape is handled in the window capture phase and marked with `preventDefault()`. A handler inside the page cannot cancel it first. In exchange, Ariakit dialogs and native dialogs under the tooltip see a handled press and stay open.
 - The gap strips replace the safe triangle.
 - No `store`, and no `showTimeout`/`hideTimeout`.
-- No `arrowPadding` prop. The padding is the `--np-TooltipArrow-padding` CSS variable (4px).
+- No `arrowPadding` prop. The padding is the `--np-Arrow-padding` CSS variable (4px).
 
 ## Browser notes
 
@@ -259,7 +259,7 @@ Defaults follow Ariakit: `placement` is `bottom-start`, or `right-start` for a s
 
 Focus is virtual, like Ariakit: DOM focus stays on `role="menu"`, and the controller writes `aria-activedescendant` and `data-active-item`. Items have `tabIndex={-1}` and never take DOM focus. So hover and key presses render nothing. Only `Menu` subscribes to the controller. The controller writes the button's `aria-expanded` and `aria-controls` to the DOM. Like Ariakit, the button is expanded only when it opened the menu, not after a right click on its row. The content gets `aria-labelledby` pointing at the element that opened it when it has no `aria-label` or `aria-labelledby` of its own: the `ContextMenuTrigger` when it has an id, else the button. So a context menu with no button, like a chat tab menu, takes its name from the tab.
 
-Pure helpers have unit tests: `menu-typeahead.ts` (Ariakit's typeahead rule) and `menu-grace.ts` (the Radix grace polygon).
+Pure helpers have unit tests: `src/layer/typeahead.ts` (Ariakit's typeahead rule), `src/layer/list.ts` (the key steps, shared with the select and the combobox), and `menu-grace.ts` (the Radix grace polygon).
 
 ### Behavior
 
@@ -301,6 +301,145 @@ Ariakit is the behavior reference, with the changes listed below. These are chec
 - `MenuItemRadio` takes a `checked` prop like `MenuItemCheckbox`. There is no `name` and `value` store.
 - No `store`, `virtualFocus`, `getAnchorRect`, menubar, modal menu, or long press for touch.
 
+## Hovercard
+
+`src/hovercard/hovercard.tsx` is a card that opens on hover, with a separate button for the keyboard. It is built like the popover: one controller per provider (`src/hovercard/hovercard-controller.ts`), `popover="manual"`, `showPopover({ source })`, and CSS anchor positioning. Import it from `native-popovers/hovercard`.
+
+The names match the Ariakit pieces that `MyHoverCard` used:
+
+- `HovercardProvider` — `placement`, `timeout`, `showTimeout`, `hideTimeout`, `open`, `setOpen`, `children`
+- `HovercardAnchor` — `render`, `children`, and any HTML props. Hover opens the card. Focus does not.
+- `HovercardDisclosure` — `render`, `children`, and any HTML props. A click, Enter, or Space toggles the card and moves focus into it.
+- `Hovercard` — `children`, `gutter`, `overflowPadding`, `unmountOnHide`, `portal`, and any div props for the content
+- `HovercardArrow` — `size`, `borderWidth`, and any div props
+
+Defaults follow Ariakit: `placement` is `bottom`, `timeout` is `500`, and `showTimeout` and `hideTimeout` fall back to `timeout`. `gutter` is `0` and `overflowPadding` is `8`. `unmountOnHide` defaults to `true`, so a closed card is not in the DOM. `HovercardArrow` `size` defaults to `30`, like Ariakit's popover arrow, and adds half its size to the gap. Without `render`, the anchor is an `a` and the disclosure is a `button type="button"`.
+
+`Hovercard` renders `np-HovercardPositioner` (the popover element) and `np-Hovercard` (the content, a non-modal `role="dialog"`). The content has `data-side`, `data-align`, `data-open`, and `data-enter`. Only `Hovercard` and `HovercardArrow` subscribe to the controller. The controller writes the disclosure's `aria-expanded` and `aria-controls` to the DOM. `aria-expanded` is `true` only when the disclosure opened the card, like Ariakit. `aria-haspopup="dialog"` is static.
+
+The arrow is the shared `LayerArrow` (`src/layer/arrow.tsx`), the same one the tooltip uses. Its limits are the tooltip's (see Styling).
+
+### Behavior
+
+Ariakit is the behavior reference. These are checked in `e2e/hovercard.spec.ts`:
+
+- The first pointer move over the anchor starts `showTimeout`. A press, a scroll, or a key during the wait cancels it. Touch never opens the card. A pen does.
+- The card closes `hideTimeout` after the pointer leaves both the anchor and the card. The gap strips count as the card, so the pointer can cross the gap.
+- Focus on the anchor does not open the card. The disclosure does: a click, Enter, or Space opens it and moves focus to the first `[autofocus]` or `[data-autofocus="true"]` element, then the first tabbable element, then the content. A second press closes it.
+- Escape closes the card. If focus was inside, it goes back to the disclosure, or to the anchor when there is no disclosure. After Escape, the resting pointer cannot reopen it until it leaves the anchor and comes back.
+- An outside click, right click, or focus move outside closes it. Focus stays where the user moved it.
+- A tooltip inside closes first on Escape. Inside a modal dialog, the first Escape closes the card and the second closes the dialog. A control inside that uses Escape first (it calls `preventDefault()`) keeps the card open.
+- A controlled parent can refuse a change. `setOpen` still runs. StrictMode hover and a StrictMode controlled open work.
+- Placement and gutter match Ariakit within 0.5px. It flips near a viewport edge.
+
+### Differences from Ariakit
+
+- The gap strips replace the safe polygon. A diagonal move far outside the gap closes the card after `hideTimeout`.
+- With a start or end placement and an anchor shorter than the arrow needs (about 40px for the 30px arrow), Ariakit moves the card so the arrow can point at the anchor's center. The native card stays aligned with the anchor, and the arrow stops 4px inside the corner. In t3-chat the presence card sits about 2px lower than before.
+- The disclosure is a normal part that the caller renders and hides. Ariakit can render its own visually hidden disclosure.
+- The card keeps its DOM parent, like the popover, so give the content its own font and color.
+- No `store`, `hideOnHoverOutside`, or `disablePointerEventsOnApproach`.
+
+## Select
+
+`src/select/select.tsx` is a WAI-ARIA select-only combobox: a trigger and a list of options, with an optional search input. It is built like the menu: one controller per provider (`src/select/select-controller.ts`), `popover="manual"`, `showPopover({ source })`, and CSS anchor positioning. Import it from `native-popovers/select`.
+
+The names match the Ariakit pieces that `MySelect` and `MySearchSelect` used:
+
+- `SelectProvider` — `value`, `defaultValue`, `setValue`, `open`, `setOpen`, `placement`, `children`. An array `value` makes a multi-value select.
+- `SelectLabel` — div props. It names the trigger (when the trigger has no `aria-label`) and the list, and a click on it focuses the trigger.
+- `Select` — the trigger. `render`, `children`, `disabled`, `typeahead`, and any HTML props.
+- `SelectPopover` — `children`, `gutter`, `sameWidth`, `overflowPadding`, `unmountOnHide`, `autoFocusOnShow`, `anchorRect`, `portal`, `portalElement`, and any div props for the content.
+- `SelectSearch` — input props plus `autoSelect`. With it, the popup is a `role="dialog"` and the options go in a `SelectList`.
+- `SelectList` — div props. The `role="listbox"` of a select that has a `SelectSearch`.
+- `SelectItem` — `value`, `render`, `children`, `disabled`, `setValueOnClick`, `hideOnClick`, and any HTML props.
+- `SelectGroup` and `SelectGroupLabel` — div props, shared with the menu (`src/layer/group.tsx`).
+- `SelectItem.useActive(value)` — whether that option is active. See "Inline row actions".
+
+Defaults follow Ariakit: `placement` is `bottom-start`, `gutter` is `0`, `overflowPadding` is `8`, `sameWidth` is `false`, `unmountOnHide` is `false`, `autoFocusOnShow` is `true`, and `typeahead` is `true`. `setValueOnClick` is `true`. `hideOnClick` is `true`, or `false` in a multi-value select. `autoSelect` is `false`.
+
+`SelectPopover` renders `np-SelectPositioner` (the popover element) and `np-Select` (the content). A closed but mounted popup has the `hidden` attribute. The content has `data-side`, `data-align`, `data-open`, and `data-enter`. The active option has `data-active-item`, and the chosen options have `aria-selected="true"`. Only `SelectPopover` subscribes to the controller. The controller writes the trigger's `aria-expanded` and `aria-controls`, the options' `aria-selected`, and the active option to the DOM. So hover, keys, and a value change render no option.
+
+Focus is virtual, like Ariakit. Without a search input, DOM focus goes to the `role="listbox"` popup, which holds `aria-activedescendant`. With one, DOM focus stays in the search input, which holds `aria-activedescendant`. Options have `tabIndex={-1}`.
+
+`anchorRect` places the list next to a rectangle in viewport pixels instead of the trigger, like a picker at the text caret. It uses a 0×0 `position: fixed` span in `body` as the anchor, like the context menu.
+
+### Behavior
+
+Ariakit is the behavior reference, with the changes listed below. These are checked in `e2e/select.spec.ts`:
+
+- A click on the trigger opens the list with the chosen option active, or no active option when nothing is chosen. Enter, Space, and the arrow key toward the list open it too. ArrowDown opens with the chosen option active, or the first one. ArrowUp opens with the chosen option, or the last one. A second click closes.
+- Arrow keys, Home, End, PageUp, and PageDown move the active option. They do not loop, and they skip disabled and hidden options. They never pick. Keys in a long list never scroll the page, and the active option scrolls into view.
+- Typeahead in the open list moves to the next option that starts with the typed text, with the menu's rules (accents ignored, a repeated letter cycles, disabled options never match, `aria-hidden` text does not count).
+- Typeahead on the closed, focused trigger picks the next matching option at once, like a native `<select>`. `typeahead={false}` turns it off.
+- Enter, Space, and a click pick the option and close the list, and focus goes back to the trigger. In a multi-value select, they toggle the option and keep the list open. A disabled option does nothing.
+- A select never picks an option by itself. With no value, no option is chosen until the user picks one.
+- `autoFocusOnShow={false}` keeps focus on the trigger. The first arrow key or typeahead match moves focus into the list, so Enter then picks. The same keys on the trigger of an open search select move focus back into the search input.
+- A select with no trigger (an `anchorRect` picker) gives focus back to the element that had it before it opened, also when the caller unmounts it right after Escape.
+- Search: focus goes to the input with no active option. Typing filters (the caller filters) and, with `autoSelect`, makes the first option active. Arrow keys loop through the input: past the last option, no option is active and the caret keys work again. Home and End move the caret unless an option is active. Enter picks the active option and never submits a form. Escape closes the list and keeps the text. An uncontrolled input is cleared when the list closes.
+- Escape closes the list, and focus goes back to the trigger. Tab closes it and moves on. An outside click, right click, or focus move outside closes it, and focus stays where the user moved it. An element whose `aria-controls` names the list counts as inside.
+- A tooltip inside and a dialog opened from an option close in the right order. Inside a modal dialog, the first Escape closes the list and the second closes the dialog.
+- A controlled parent can refuse a change. `setValue` and `setOpen` still run. StrictMode works: one click gives one open.
+- Placement and gutter match Ariakit within 0.5px. It flips near a viewport edge.
+
+### Inline row actions
+
+An option can hold buttons, like a star button in a thread row. Keep the option as the main action:
+
+- Give each button a `data-*` attribute, and pass `setValueOnClick` and `hideOnClick` functions that return `false` when the click target is inside such a button.
+- Call `preventDefault()` on the button's `mousedown`, so focus stays in the list.
+- Keep the buttons out of the Tab order unless their option is active: `tabIndex={SelectItem.useActive(value) ? 0 : -1}`. The hook renders the row only when its answer changes. It is the one subscription a caller may add. The select's own parts never use it.
+- Enter and Space on a focused button run the button, not the option: the list reads keys only on its own focus owner.
+
+### Differences from Ariakit
+
+- Arrow keys never pick. There is no `setValueOnMove` or `moveOnKeyDown`.
+- An uncontrolled select with no value never takes the first option's value. Ariakit does, and calls `setValue` for a pick nobody made.
+- The keys skip hidden options (`display: none`). Typeahead ignores `aria-hidden` text.
+- `SelectItem.useActive` replaces `useSelectStore` and `useStoreState`. There is no `store`.
+- The list keeps its DOM parent, like the menu, so give the content its own font and color, and render it through a React portal inside a widget that reads keys on its own element.
+- Firefox ignores a `transform` on an ancestor of the trigger (see "Browser notes"), so a select inside a transformed dialog opens where the trigger would be without the transform.
+
+## Combobox
+
+`src/combobox/combobox.tsx` is an editable combobox: a text input with a list of options that the caller filters. It is built like the select: one controller per provider (`src/combobox/combobox-controller.ts`), `popover="manual"`, and CSS anchor positioning. It calls `showPopover()` without `source`: focus stays in the input, so Tab must reach the next element in the DOM, like Ariakit. Import it from `native-popovers/combobox`.
+
+The names match the Ariakit pieces that `MyCombobox` used:
+
+- `ComboboxProvider` — `value`, `defaultValue`, `setValue`, `open`, `setOpen`, `placement`, `children`. `value` is the input text.
+- `ComboboxLabel` — label props. It points at the input with `for`.
+- `Combobox` — input props plus `showOnChange`, `showOnClick`, `showOnKeyPress`, and `autoSelect`.
+- `ComboboxPopover` — `children`, `gutter`, `sameWidth`, `overflowPadding`, `unmountOnHide`, `portal`, `portalElement`, and any div props for the content.
+- `ComboboxList` — div props. The `role="listbox"` inside a popover that holds other content too, or an inline list with no popover.
+- `ComboboxItem` — `value`, `render`, `children`, `disabled`, `setValueOnClick`, `hideOnClick`, and any HTML props.
+- `ComboboxGroup` and `ComboboxGroupLabel` — div props.
+- `ComboboxCancel` — `render`, `children`, and any HTML props. It clears the input.
+
+Defaults follow Ariakit: `placement` is `bottom-start`, `gutter` is `0`, `overflowPadding` is `8`, `sameWidth` is `false`, and `unmountOnHide` is `false`. `showOnChange`, `showOnClick`, and `showOnKeyPress` are `true`, and `autoSelect` is `false`. `setValueOnClick` is `true`, and `hideOnClick` is `true` when the option has a `value`. `ComboboxCancel` is out of the Tab order and has the label "Clear input".
+
+`ComboboxPopover` renders `np-ComboboxPositioner` and `np-Combobox`, like the select. DOM focus always stays in the input, which holds `aria-activedescendant`. Only `ComboboxPopover` subscribes to the controller. The controller writes the input's `aria-expanded`, `aria-haspopup`, and `aria-controls`. When the popover holds a `ComboboxList` and other content, it is a `role="dialog"`, and the input points at it with `aria-haspopup="dialog"`, like Ariakit. Otherwise the input points at the listbox.
+
+### Behavior
+
+Ariakit is the behavior reference. These are checked in `e2e/combobox.spec.ts`:
+
+- Typing opens the list (`showOnChange`). A press on the input opens it (`showOnClick`). ArrowDown or ArrowUp on the closed input opens it (`showOnKeyPress`).
+- Arrow keys move the active option and loop through the input: past the last option, no option is active. Hover moves the active option too. The active option scrolls into view, also inside a scrolling container.
+- With `autoSelect`, each text change makes the first option active, after the caller filters. A navigation key turns it off until the next change.
+- Enter picks the active option: it writes the option's `value` into the input and closes the list. Enter while the list is open never submits a form.
+- Escape closes the list and keeps the text. When focus was on a control inside the popup, like a `<details>` summary, it goes back to the input. `ComboboxCancel` clears the text, keeps the list open, and keeps focus in the input.
+- A hover turns `autoSelect` off, like a navigation key, so a later list change does not move the active option back to the first one. The select does the same.
+- An outside click, right click, or focus move outside closes the list. A press inside the list keeps focus in the input. An element whose `aria-controls` names the input or the list counts as inside.
+- Inside a modal dialog, the first Escape closes the list and the second closes the dialog.
+- A controlled parent can refuse a change. `setValue` and `setOpen` still run. StrictMode typing works.
+
+### Differences from Ariakit
+
+- No `focusOnHover` prop: hover always moves the active option, and DOM focus stays in the input.
+- No inline autocomplete (`autoComplete="inline"` or `"both"`).
+- No `store`, `resetValueOnHide`, or `setValueOnChange`.
+- The list keeps its DOM parent, like the select.
+
 ## Performance
 
 `src/tooltip/tooltip-perf.stories.tsx` renders 1000 rows with the same JSX for this library and for Ariakit. Production build, headless Chromium, median of 5 runs, 3 tooltips per row (like a Files sidebar row):
@@ -326,9 +465,9 @@ vp env exec pnpm exec playwright test --project=chromium
 
 Playwright starts Storybook, and `e2e/warm-up.ts` loads one story of each file before the tests. After a source change, the first load waits while Vite compiles, and without the warm-up the first test of each worker can time out. The first command runs Playwright's own Chromium, WebKit, and Firefox. The second runs Chromium only. Do not use the signed-in Edge profile. Touch and pen checks use CDP input, so they run in Chromium only.
 
-Every story in `src/tooltip/tooltip.stories.tsx`, `src/popover/popover.stories.tsx`, and `src/menu/menu.stories.tsx` is a manual check too. `ManyRows` mounts 1000 anchors for a performance check. `AriakitParity` shows each native popover next to an Ariakit one with the same placement and gutter.
+Every story in `src/tooltip/tooltip.stories.tsx`, `src/popover/popover.stories.tsx`, `src/menu/menu.stories.tsx`, `src/hovercard/hovercard.stories.tsx`, `src/select/select.stories.tsx`, and `src/combobox/combobox.stories.tsx` is a manual check too. `ManyRows` mounts 1000 anchors for a performance check. `AriakitParity` shows each native popover next to an Ariakit one with the same placement and gutter.
 
-Unit tests cover the placement map, the menu typeahead, and the grace area:
+Unit tests cover the placement map, the typeahead, the list key steps, and the grace area:
 
 ```sh
 vp env exec pnpm test
@@ -375,6 +514,14 @@ Four menus render through a React portal, out of a trigger ancestor that would b
 - The agent chat tab menu goes into `#app_hoisting_container`. A tablist may own only tabs.
 - The folder explorer row menu goes into `#app_hoisting_container`. The row reads clipboard keys (Escape, Mod+C, Mod+X, Mod+V) with a native listener, which runs before the menu.
 - The rich text block menu goes next to the editor. The drag handle is a draggable `.MyButton`, so inside it the menu would get its grab cursor and turn on its hover and active styles.
+
+`MyHoverCard` renders `HovercardProvider`, `HovercardAnchor`, `HovercardDisclosure`, `Hovercard`, and `HovercardArrow`. `MyHovercardAction` renders the anchor and an `sr-only` disclosure right after it, so the disclosure is the one Tab stop. `.MyHoverCardContent` has `contain: content`, which hides the arrow (see the limit under Styling), so the app shows no arrow, as before.
+
+`MySelect` renders `SelectProvider`, `Select`, `SelectPopover`, `SelectItem`, `SelectGroup`, and `SelectGroupLabel`. `MySearchSelect` adds `SelectSearch` and `SelectList`, and exposes `SelectItem.useActive` as `MySearchSelect.useSelectItemActive` for the Past chats picker's row actions. `MyCombobox` renders the combobox parts, and the Files sidebar search uses it. Three app notes:
+
+- `.MySelectPopover` and `.MyComboboxPopover` reset font, weight, and `white-space`, like `.MyMenuPopover`.
+- Their scroll areas have `tabIndex={-1}`: a scroll area that can scroll would be a Tab stop inside the list.
+- The rich text bubble menu's Escape handler also skips a press while a select in the bubble has `data-open` (the Block format select), so the first Escape closes only the select.
 
 ## Reference submodules
 
