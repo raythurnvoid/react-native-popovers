@@ -35,6 +35,7 @@ import {
 	placement_side,
 	type Placement,
 } from "../layer/placement.ts";
+import { LayerGroup, LayerGroupLabel, type LayerGroupLabelProps, type LayerGroupProps } from "../layer/group.tsx";
 import { createMenu, type MenuController } from "./menu-controller.ts";
 import "./menu.css";
 
@@ -527,47 +528,22 @@ export const MenuItemRadio = memo(function MenuItemRadio(props: MenuItemRadioPro
 // #endregion radio item
 
 // #region group
-// The group's label id setter, so a MenuGroupLabel can name its group.
-const MenuGroupContext = createContext<((id: string | null) => void) | null>(null);
-
-export type MenuGroupProps = ComponentPropsWithRef<"div">;
+export type MenuGroupProps = LayerGroupProps;
 
 /**
  * A `role="group"` of items. A `MenuGroupLabel` inside it names it.
  */
-export const MenuGroup = memo(function MenuGroup(props: MenuGroupProps) {
-	const { children, ...rest } = props;
-	const [labelId, setLabelId] = useState<string | null>(null);
-
-	return (
-		<div role="group" aria-labelledby={labelId ?? undefined} {...rest}>
-			<MenuGroupContext value={setLabelId}>{children}</MenuGroupContext>
-		</div>
-	);
-});
+export const MenuGroup = LayerGroup;
 // #endregion group
 
 // #region group label
-export type MenuGroupLabelProps = ComponentPropsWithRef<"div">;
+export type MenuGroupLabelProps = LayerGroupLabelProps;
 
 /**
  * The visible label of a `MenuGroup`. It is hidden from assistive technology, because the group
  * already takes its text as its name, like Ariakit.
  */
-export const MenuGroupLabel = memo(function MenuGroupLabel(props: MenuGroupLabelProps) {
-	const { id, ...rest } = props;
-	const setGroupLabelId = use(MenuGroupContext);
-	const generatedId = useId();
-	const labelId = id ?? generatedId;
-
-	useLayoutEffect(() => {
-		if (!setGroupLabelId) return;
-		setGroupLabelId(labelId);
-		return () => setGroupLabelId(null);
-	}, [setGroupLabelId, labelId]);
-
-	return <div aria-hidden="true" {...rest} id={labelId} />;
-});
+export const MenuGroupLabel = LayerGroupLabel;
 // #endregion group label
 
 // #region context menu trigger

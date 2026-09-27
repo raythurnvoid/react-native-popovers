@@ -871,7 +871,7 @@ test("a ring box-shadow gives the arrow its stroke", async ({ page }) => {
 	await expect(arrow).toHaveAttribute("data-ring", "");
 	await expect(arrow).toHaveCSS("stroke", "rgb(59, 130, 246)");
 	await expect(arrow).toHaveCSS("stroke-width", `${2 * 2 * (30 / 16)}px`);
-	await expect(arrow.locator(".np-TooltipArrow-underlay")).toBeHidden();
+	await expect(arrow.locator(".np-Arrow-underlay")).toBeHidden();
 });
 
 test("a transform on the content keeps the arrow centered on the requested side", async ({ page, browserName }) => {

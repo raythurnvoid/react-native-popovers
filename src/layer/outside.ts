@@ -15,6 +15,16 @@ type Outside = {
 };
 
 /**
+ * Whether `target` is inside an element whose `aria-controls` names one of `ids`. Ariakit counts such
+ * an element as part of the layer, so focus or a click on it (a filter button next to a search box)
+ * does not close the layer.
+ */
+export function outside_controls(target: EventTarget | null, ids: Array<string | null | undefined>) {
+	if (!target || typeof (target as Element).closest !== "function") return false;
+	return ids.some((id) => !!id && !!(target as Element).closest(`[aria-controls~="${CSS.escape(id)}"]`));
+}
+
+/**
  * Listen for Ariakit's outside rules on `doc` and return a function that stops listening.
  *
  * A click closes only when the press also started outside, so a text selection dragged out of the

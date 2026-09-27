@@ -34,6 +34,7 @@ import {
 	placement_side,
 	type Placement,
 } from "../layer/placement.ts";
+import { LayerArrow, type LayerArrowHost_ClassNames, type LayerArrowHost_CssVars } from "../layer/arrow.tsx";
 import { createTooltip, type TooltipController } from "./tooltip-controller.ts";
 import "./tooltip.css";
 
@@ -250,9 +251,8 @@ export const TooltipAnchor = memo(function TooltipAnchor(props: TooltipAnchorPro
 // #region tooltip
 type Tooltip_ClassNames = "np-TooltipPositioner" | "np-Tooltip";
 
-type Tooltip_CssVars = {
+type Tooltip_CssVars = LayerArrowHost_CssVars & {
 	"--np-TooltipPositioner-anchor": string;
-	"--np-TooltipPositioner-box": string;
 	"--np-TooltipPositioner-gutter": string;
 	"--np-TooltipPositioner-position-area": string;
 	"--np-TooltipPositioner-position-try-fallbacks": string;
@@ -351,15 +351,19 @@ export const Tooltip = memo(function Tooltip(props: TooltipProps) {
 		<div
 			ref={setPositioner}
 			popover="manual"
-			className={"np-TooltipPositioner" satisfies Tooltip_ClassNames}
+			className={cx(
+				"np-TooltipPositioner" satisfies Tooltip_ClassNames,
+				"np-ArrowHost" satisfies LayerArrowHost_ClassNames,
+			)}
 			data-side={side}
 			data-align={align}
 			data-interactive={interactive ? undefined : "false"}
 			style={
 				{
-					// The arrow reads both names: it points at the anchor and stays inside the positioner box.
 					"--np-TooltipPositioner-anchor": tooltip.anchorName,
-					"--np-TooltipPositioner-box": `${tooltip.anchorName}-box`,
+					// The arrow reads both names: it points at the anchor and stays inside the positioner box.
+					"--np-Arrow-anchor": tooltip.anchorName,
+					"--np-Arrow-box": `${tooltip.anchorName}-box`,
 					"--np-TooltipPositioner-gutter": `${gutter}px`,
 					"--np-TooltipPositioner-position-area": placement_position_area(placement),
 					"--np-TooltipPositioner-position-try-fallbacks": placement_position_try_fallbacks(placement),
@@ -390,40 +394,7 @@ export const Tooltip = memo(function Tooltip(props: TooltipProps) {
 // #endregion tooltip
 
 // #region arrow
-// Adapted from Ariakit's PopoverArrow (MIT, Copyright (c) Diego Haz):
-// packages/ariakit-react-components/src/popover/popover-arrow.tsx
-// Changes: CSS anchor positioning places and rotates the arrow, and the colors are written to CSS
-// variables instead of React state, so reading them does not render again.
-
-/*
- * Copyright 2017 Palantir Technologies, Inc. All rights reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * Modifications Copyright 2019 - present by Diego Haz.
- *
- * Extracted the SVG path and made the tip more angled.
- *
- * Copied from Ariakit: packages/ariakit-react-components/src/popover/popover-arrow-path.ts
- */
-const ARROW_PATH =
-	"M23 27.8C24.1 29 26.4 30 28 30H30H0H2C3.7 30 5.9 29 7 27.8L14 20.6C14.7 19.8 15.3 19.8 16 20.6L23 27.8Z";
-
-type TooltipArrow_ClassNames = "np-TooltipArrow" | "np-TooltipArrow-underlay";
-
-type TooltipArrow_CssVars = {
-	"--np-TooltipArrow-size": string;
-};
+type TooltipArrow_ClassNames = "np-TooltipArrow";
 
 export type TooltipArrowProps = Omit<ComponentPropsWithRef<"div">, "children"> & {
 	/**
@@ -437,56 +408,6 @@ export type TooltipArrowProps = Omit<ComponentPropsWithRef<"div">, "children"> &
 	borderWidth?: number;
 };
 
-// The SVG path is drawn in a 30 by 30 box.
-const VIEW_SIZE = 30;
-
-/**
- * Replace every character inside parentheses with a space. Then length matching and comma splitting
- * cannot pick up numbers or commas from color functions such as rgb() or oklch(). The indexes still
- * match the original text.
- */
-function mask_parentheses(text: string) {
-	let masked = "";
-	let depth = 0;
-	for (const char of text) {
-		if (char === "(") depth += 1;
-		if (char === ")") depth = Math.max(0, depth - 1);
-		masked += depth > 0 && char !== "(" ? " " : char;
-	}
-	return masked;
-}
-
-// A ring is a box-shadow part with zero x, y, and blur, and a positive spread.
-const RING_LENGTHS = /(?:^|\s)0(?:px)?\s+0(?:px)?\s+0(?:px)?\s+((?:\d*\.)?\d+)px(?=\s|$)/;
-
-/**
- * Find the first box-shadow part that draws a ring, like Tailwind ring utilities, and return its
- * width and color. Copied in spirit from Ariakit's getRing.
- */
-function get_ring(style: CSSStyleDeclaration) {
-	const boxShadow = style.getPropertyValue("box-shadow");
-	if (!boxShadow || boxShadow === "none") return;
-
-	const masked = mask_parentheses(boxShadow);
-	let start = 0;
-	// Split on top-level commas only. rgb(59, 130, 246) has commas of its own, but they are masked.
-	for (let index = 0; index <= masked.length; index += 1) {
-		if (index !== masked.length && masked[index] !== ",") continue;
-		const segment = boxShadow.slice(start, index);
-		const match = masked.slice(start, index).match(RING_LENGTHS);
-		start = index + 1;
-		const width = match?.[1] ? Number.parseFloat(match[1]) : 0;
-		// A zero spread is a placeholder, not a ring.
-		if (!match || !width) continue;
-
-		const lengthsStart = match.index ?? 0;
-		const rest = `${segment.slice(0, lengthsStart)} ${segment.slice(lengthsStart + match[0].length)}`;
-		const color = rest.replace(/\binset\b/g, " ").trim();
-		return { width, color };
-	}
-	return;
-}
-
 /**
  * An arrow that points from `Tooltip` to its anchor. Put it inside `Tooltip`.
  *
@@ -494,78 +415,20 @@ function get_ring(style: CSSStyleDeclaration) {
  * It takes its fill and stroke from the tooltip's background and border, or from a ring box-shadow.
  */
 export const TooltipArrow = memo(function TooltipArrow(props: TooltipArrowProps) {
-	const { ref, className, style, size = 16, borderWidth, ...rest } = props;
+	const { className, size = 16, borderWidth, ...rest } = props;
 	const tooltip = useTooltipContext("TooltipArrow");
 	// Read the colors again on each open. A theme switch can change them while the tooltip is closed.
 	const { open, placement } = useSyncExternalStore(tooltip.subscribe, tooltip.getSnapshot, tooltip.getSnapshot);
-	const side = placement_side(placement);
-	const maskId = useId();
-	const element = useRef<HTMLDivElement | null>(null);
-
-	const setElement = useFn((node: HTMLDivElement) => {
-		element.current = node;
-		return () => {
-			element.current = null;
-		};
-	});
-
-	useForwardRefs(element, [ref]);
-
-	// The positioner adds half the arrow size to the gap, so the tip reaches toward the anchor.
-	useLayoutEffect(() => {
-		const positioner = element.current?.closest<HTMLElement>(".np-TooltipPositioner");
-		positioner?.style.setProperty("--np-TooltipPositioner-arrow-size", `${size}px`);
-		return () => {
-			positioner?.style.removeProperty("--np-TooltipPositioner-arrow-size");
-		};
-	}, [size]);
-
-	useLayoutEffect(() => {
-		const node = element.current;
-		const content = node?.closest<HTMLElement>(".np-Tooltip");
-		if (!node || !content || !open) return;
-
-		const computed = content.ownerDocument.defaultView!.getComputedStyle(content);
-		const fill = computed.getPropertyValue("background-color") || "none";
-		const borderColor = computed.getPropertyValue(`border-${side}-color`) || "none";
-		const border = Number.parseFloat(computed.getPropertyValue(`border-${side}-width`)) || 0;
-		// A ring sits outside the box, so the arrow base does not overlap it. A border is inside the box.
-		const ring = borderWidth === undefined && !border ? get_ring(computed) : undefined;
-		const stroke = ring ? ring.color || computed.getPropertyValue("color") || "none" : borderColor;
-		const width = borderWidth ?? (ring ? Math.ceil(ring.width) : Math.ceil(border));
-
-		node.style.setProperty("--np-TooltipArrow-fill", fill);
-		node.style.setProperty("--np-TooltipArrow-stroke", stroke);
-		node.style.setProperty("--np-TooltipArrow-border", `${border}px`);
-		// The stroke is drawn in the 30px view box, and half of it is masked away.
-		node.style.setProperty("--np-TooltipArrow-stroke-width", `${width * 2 * (VIEW_SIZE / size)}`);
-		node.toggleAttribute("data-ring", !!ring);
-	}, [open, side, size, borderWidth]);
 
 	return (
-		<div
+		<LayerArrow
 			{...rest}
-			ref={setElement}
-			aria-hidden
 			className={cx("np-TooltipArrow" satisfies TooltipArrow_ClassNames, className)}
-			style={{ "--np-TooltipArrow-size": `${size}px`, ...style } satisfies TooltipArrow_CssVars as CSSProperties}
-		>
-			<svg display="block" viewBox="0 0 30 30">
-				{/* This path paints the tooltip background under the border stroke, like an HTML border. */}
-				<path
-					className={"np-TooltipArrow-underlay" satisfies TooltipArrow_ClassNames}
-					fill="none"
-					style={{ stroke: "var(--np-TooltipArrow-fill)" }}
-					d={ARROW_PATH}
-					mask={`url(#${CSS.escape(maskId)})`}
-				/>
-				<path fill="none" d={ARROW_PATH} mask={`url(#${CSS.escape(maskId)})`} />
-				<path stroke="none" d={ARROW_PATH} />
-				<mask id={maskId} maskUnits="userSpaceOnUse">
-					<rect x="-15" y="0" width="60" height="30" fill="white" stroke="black" />
-				</mask>
-			</svg>
-		</div>
+			size={size}
+			borderWidth={borderWidth}
+			open={open}
+			side={placement_side(placement)}
+		/>
 	);
 });
 // #endregion arrow

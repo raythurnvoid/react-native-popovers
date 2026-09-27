@@ -2,7 +2,7 @@
  * Lowercase text with accents removed, so "É" matches "e". Ariakit's `normalizeString` plus trim
  * and lowercase.
  */
-export function menu_typeahead_normalize(text: string) {
+export function typeahead_normalize(text: string) {
 	return text
 		.normalize("NFD")
 		.replace(/[\u0300-\u036f]/g, "")
@@ -15,7 +15,7 @@ export function menu_typeahead_normalize(text: string) {
  * counts only when a search is already running, so a lone Space still clicks the active item.
  * Ariakit's `isValidTypeaheadEvent`.
  */
-export function menu_typeahead_is_key(
+export function typeahead_is_key(
 	event: { key: string; ctrlKey: boolean; altKey: boolean; metaKey: boolean },
 	buffer: string,
 ) {
@@ -40,8 +40,8 @@ export function menu_typeahead_is_key(
  * - Otherwise the search starts at the top of the list.
  * - No match clears the buffer and keeps the active item.
  */
-export function menu_typeahead_next(texts: readonly string[], activeIndex: number, buffer: string, key: string) {
-	const char = menu_typeahead_normalize(key) || key;
+export function typeahead_next(texts: readonly string[], activeIndex: number, buffer: string, key: string) {
+	const char = typeahead_normalize(key) || key;
 	let chars = buffer + char;
 	let candidates = texts.map((text, index) => ({ text, index }));
 
@@ -55,4 +55,23 @@ export function menu_typeahead_next(texts: readonly string[], activeIndex: numbe
 
 	const match = candidates.find((candidate) => candidate.text.startsWith(chars));
 	return match ? { index: match.index, buffer: chars } : { index: -1, buffer: "" };
+}
+
+/**
+ * The item text that typeahead matches: the text outside `aria-hidden="true"` elements. Ariakit
+ * reads all of `textContent`, so a hidden icon or sample letter ("A" before "Purple") becomes the
+ * first letter, and "p" never reaches Purple. The hidden text is not part of the item's name either.
+ */
+export function typeahead_text(item: Element) {
+	let text = "";
+	const walker = item.ownerDocument.createTreeWalker(item, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
+		acceptNode: (node) =>
+			node.nodeType === Node.ELEMENT_NODE && (node as Element).getAttribute("aria-hidden") === "true"
+				? NodeFilter.FILTER_REJECT
+				: NodeFilter.FILTER_ACCEPT,
+	});
+	for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+		if (node.nodeType === Node.TEXT_NODE) text += node.nodeValue ?? "";
+	}
+	return text;
 }

@@ -52,7 +52,7 @@ export function placement_position_area(placement: Placement): string {
  * A centered popup stays centered when you only flip, so overflow on the
  * other axis still clips it. Centered placements add span slides after the flips.
  * The slides use the same logical self-* keywords as the placement, so RTL keeps working.
- * The tooltip arrow in tooltip.css matches these exact values in its anchored container
+ * The arrow in arrow.css matches these exact values in its anchored container
  * queries, so keep both in sync.
  */
 export function placement_position_try_fallbacks(placement: Placement): string {

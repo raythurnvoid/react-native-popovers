@@ -1,10 +1,11 @@
 import { anchor_name_add } from "../layer/anchor-name.ts";
 import { focus_is_focusable } from "../layer/focus.ts";
 import { layer_stack_add } from "../layer/layer-stack.ts";
+import { list_active, list_enabled, list_items, list_page_item, list_step } from "../layer/list.ts";
 import { outside_add } from "../layer/outside.ts";
 import type { Placement } from "../layer/placement.ts";
+import { typeahead_is_key, typeahead_next, typeahead_normalize, typeahead_text } from "../layer/typeahead.ts";
 import { MENU_GRACE_TIMEOUT, menu_grace_area, menu_grace_contains, type Point } from "./menu-grace.ts";
-import { menu_typeahead_is_key, menu_typeahead_next, menu_typeahead_normalize } from "./menu-typeahead.ts";
 
 export type MenuOptions = {
 	placement: Placement;
@@ -87,25 +88,6 @@ function is_element(target: EventTarget | null): target is Element {
 }
 
 /**
- * The item text that typeahead matches: the text outside `aria-hidden="true"` elements. Ariakit
- * reads all of `textContent`, so a hidden icon or sample letter ("A" before "Purple") becomes the
- * first letter, and "p" never reaches Purple. The hidden text is not part of the item's name either.
- */
-function typeahead_text(item: Element) {
-	let text = "";
-	const walker = item.ownerDocument.createTreeWalker(item, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
-		acceptNode: (node) =>
-			is_element(node) && node.getAttribute("aria-hidden") === "true"
-				? NodeFilter.FILTER_REJECT
-				: NodeFilter.FILTER_ACCEPT,
-	});
-	for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-		if (node.nodeType === Node.TEXT_NODE) text += node.nodeValue ?? "";
-	}
-	return text;
-}
-
-/**
  * The state of one menu level: a root menu, or a submenu inside `parent`.
  *
  * Like the popover, opening and closing renders only `Menu`. The controller writes the button's aria
@@ -141,7 +123,7 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 	const children = new Map<HTMLElement, MenuLevel>();
 	let openChild: MenuLevel | null = null;
 
-	let activeItem: HTMLElement | null = null;
+	const active = list_active(() => content);
 	let typeaheadBuffer = "";
 	let typeaheadTimer: ReturnType<typeof setTimeout> | undefined;
 	let spaceItem: HTMLElement | null = null;
@@ -223,14 +205,11 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 	 * hidden items (`display: none`) are skipped.
 	 */
 	function items() {
-		if (!content) return [];
-		return [...content.querySelectorAll<HTMLElement>(ITEM_SELECTOR)].filter(
-			(item) => item.closest('[role="menu"]') === content && item.checkVisibility(),
-		);
+		return list_items(content, ITEM_SELECTOR, (item) => item.closest('[role="menu"]') === content);
 	}
 
 	function enabledItems() {
-		return items().filter((item) => item.getAttribute("aria-disabled") !== "true");
+		return list_enabled(items());
 	}
 
 	function levelItem(target: EventTarget | null) {
@@ -248,18 +227,6 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 		return field && field.closest('[role="menu"]') === content ? field : null;
 	}
 
-	function setActive(item: HTMLElement | null, scroll: boolean) {
-		if (activeItem && activeItem !== item) activeItem.removeAttribute("data-active-item");
-		activeItem = item;
-		if (item) {
-			item.setAttribute("data-active-item", "");
-			if (item.id) content?.setAttribute("aria-activedescendant", item.id);
-			if (scroll) item.scrollIntoView({ block: "nearest" });
-		} else {
-			content?.removeAttribute("aria-activedescendant");
-		}
-	}
-
 	/**
 	 * Move the active item with the keyboard. Moving it away from the item of an open submenu closes
 	 * that submenu, like a hover on another item.
@@ -267,31 +234,7 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 	function move(item: HTMLElement | undefined) {
 		if (!item) return;
 		if (openChild && item !== openChild.getButton()) openChild.request(false, "sibling");
-		setActive(item, true);
-	}
-
-	/**
-	 * The item one page away, like Ariakit's PageUp and PageDown: the farthest item that is still
-	 * within one scroll-container height of the active item. At the end, it is the last item.
-	 */
-	function pageItem(list: HTMLElement[], step: 1 | -1) {
-		const from = activeItem && list.includes(activeItem) ? activeItem : null;
-		if (!from) return step > 0 ? list[0] : list.at(-1);
-		let scroller: HTMLElement | null = from.parentElement;
-		while (scroller && scroller !== content && scroller.scrollHeight <= scroller.clientHeight) {
-			scroller = scroller.parentElement;
-		}
-		const page = (scroller ?? content ?? from).clientHeight;
-		const fromTop = from.getBoundingClientRect().top;
-		const start = list.indexOf(from);
-		let target = from;
-		for (let index = start + step; index >= 0 && index < list.length; index += step) {
-			const item = list[index]!;
-			if (Math.abs(item.getBoundingClientRect().top - fromTop) > page) break;
-			target = item;
-		}
-		// An item taller than the page still moves one step.
-		return target === from ? list[start + step] : target;
+		active.set(item, true);
 	}
 	// #endregion items
 
@@ -314,7 +257,7 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 		if (!child) return;
 		cancelHoverOpen();
 		if (openChild && openChild !== child) openChild.request(false, "sibling");
-		setActive(item, false);
+		active.set(item, false);
 		child.request(true, reason);
 	}
 	// #endregion submenus
@@ -408,8 +351,8 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 		if (!content) return;
 		if (openReason === "hover") return;
 		if (!content.contains(content.ownerDocument.activeElement)) content.focus({ preventScroll: true });
-		if (openReason === "keyboard-first") setActive(enabledItems()[0] ?? null, true);
-		if (openReason === "keyboard-last") setActive(enabledItems().at(-1) ?? null, true);
+		if (openReason === "keyboard-first") active.set(enabledItems()[0] ?? null, true);
+		if (openReason === "keyboard-last") active.set(enabledItems().at(-1) ?? null, true);
 	}
 
 	/**
@@ -453,7 +396,7 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 			openChild?.request(false, "parent");
 			cancelHoverOpen();
 			endGrace();
-			setActive(null, false);
+			active.set(null, false);
 			clearTimeout(typeaheadTimer);
 			typeaheadBuffer = "";
 			parent?.childClosed(menu);
@@ -502,14 +445,15 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 	// #region keys
 	function handleTypeahead(event: KeyboardEvent) {
 		clearTimeout(typeaheadTimer);
-		if (!menu_typeahead_is_key(event, typeaheadBuffer)) {
+		if (!typeahead_is_key(event, typeaheadBuffer)) {
 			typeaheadBuffer = "";
 			return false;
 		}
 
 		const list = enabledItems();
-		const texts = list.map((item) => menu_typeahead_normalize(typeahead_text(item)));
-		const next = menu_typeahead_next(texts, activeItem ? list.indexOf(activeItem) : -1, typeaheadBuffer, event.key);
+		const activeItem = active.get();
+		const texts = list.map((item) => typeahead_normalize(typeahead_text(item)));
+		const next = typeahead_next(texts, activeItem ? list.indexOf(activeItem) : -1, typeaheadBuffer, event.key);
 		typeaheadBuffer = next.buffer;
 		typeaheadTimer = setTimeout(() => {
 			typeaheadBuffer = "";
@@ -545,27 +489,24 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 		const rtl = getComputedStyle(content).direction === "rtl";
 		const openKey = rtl ? "ArrowLeft" : "ArrowRight";
 		const closeKey = rtl ? "ArrowRight" : "ArrowLeft";
+		const activeItem = active.get();
 		const index = activeItem ? list.indexOf(activeItem) : -1;
 
 		switch (event.key) {
 			case "ArrowDown":
-				// No loop at the ends, like Ariakit's default (`focusLoop` false).
-				move(index === -1 ? list[0] : list[index + 1]);
-				break;
 			case "ArrowUp":
-				move(index === -1 ? list.at(-1) : list[index - 1]);
-				break;
 			case "Home":
-				move(list[0]);
+			case "End": {
+				// No loop at the ends, like Ariakit's default (`focusLoop` false).
+				const next = list_step(list.length, index, event.key, "none");
+				if (next !== undefined) move(list[next]);
 				break;
-			case "End":
-				move(list.at(-1));
-				break;
+			}
 			case "PageDown":
-				move(pageItem(list, 1));
+				move(list_page_item(list, activeItem, 1, content));
 				break;
 			case "PageUp":
-				move(pageItem(list, -1));
+				move(list_page_item(list, activeItem, -1, content));
 				break;
 			case openKey:
 				if (!activeItem || !children.has(activeItem)) return;
@@ -597,7 +538,7 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 		if (event.key !== " ") return;
 		const item = spaceItem;
 		spaceItem = null;
-		if (!item || item !== activeItem || event.defaultPrevented) return;
+		if (!item || item !== active.get() || event.defaultPrevented) return;
 		event.preventDefault();
 		if (children.has(item)) openChildOf(item, "keyboard-first");
 		else item.click();
@@ -649,13 +590,13 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 		if (!item) {
 			cancelHoverOpen();
 			// Keep the item of an open submenu active, so the user sees where the submenu comes from.
-			if (!openChild) setActive(null, false);
+			if (!openChild) active.set(null, false);
 			return;
 		}
 
-		if (item !== activeItem) {
+		if (item !== active.get()) {
 			if (openChild) openChild.request(false, "sibling");
-			setActive(item, false);
+			active.set(item, false);
 		}
 
 		// Hover moves focus to the item's level, like Ariakit. So after the pointer enters a submenu,
@@ -682,7 +623,7 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 		lastItemPoint = null;
 		// Leaving every menu keeps an open submenu open, so a pointer that overshoots does not lose it.
 		// Ariakit closes it by default (`hideOnHoverOutside`); t3-chat turned that off.
-		if (!openChild) setActive(null, false);
+		if (!openChild) active.set(null, false);
 	}
 
 	/**
@@ -841,7 +782,7 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 			queueMicrotask(sync);
 		},
 		setContent(element: HTMLElement | null) {
-			if (!element) setActive(null, false);
+			if (!element) active.set(null, false);
 			content = element;
 			writeAria();
 		},
@@ -852,7 +793,7 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 			if (children.get(item) !== child) return;
 			children.delete(item);
 			// The submenu item left the DOM, so it cannot stay active.
-			if (activeItem === item) setActive(null, false);
+			if (active.get() === item) active.set(null, false);
 		},
 		childOpened(child: MenuLevel) {
 			if (openChild && openChild !== child) openChild.request(false, "sibling");
@@ -868,7 +809,7 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 		 */
 		focusItem(item: HTMLElement | null) {
 			content?.focus({ preventScroll: true });
-			if (item) setActive(item, false);
+			if (item) active.set(item, false);
 		},
 		/**
 		 * Open the submenu of an item from a click on it. A click never closes a submenu (Ariakit).
