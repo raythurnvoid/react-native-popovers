@@ -205,7 +205,11 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 	 * hidden items (`display: none`) are skipped.
 	 */
 	function items() {
-		return list_items(content, ITEM_SELECTOR, (item) => item.closest('[role="menu"]') === content);
+		return list_items({
+			container: content,
+			selector: ITEM_SELECTOR,
+			owns: (item) => item.closest('[role="menu"]') === content,
+		});
 	}
 
 	function enabledItems() {
@@ -453,7 +457,12 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 		const list = enabledItems();
 		const activeItem = active.get();
 		const texts = list.map((item) => typeahead_normalize(typeahead_text(item)));
-		const next = typeahead_next(texts, activeItem ? list.indexOf(activeItem) : -1, typeaheadBuffer, event.key);
+		const next = typeahead_next({
+			texts,
+			activeIndex: activeItem ? list.indexOf(activeItem) : -1,
+			buffer: typeaheadBuffer,
+			key: event.key,
+		});
 		typeaheadBuffer = next.buffer;
 		typeaheadTimer = setTimeout(() => {
 			typeaheadBuffer = "";
@@ -498,15 +507,15 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 			case "Home":
 			case "End": {
 				// No loop at the ends, like Ariakit's default (`focusLoop` false).
-				const next = list_step(list.length, index, event.key, "none");
+				const next = list_step({ length: list.length, index, key: event.key, loop: "none" });
 				if (next !== undefined) move(list[next]);
 				break;
 			}
 			case "PageDown":
-				move(list_page_item(list, activeItem, 1, content));
+				move(list_page_item({ list, from: activeItem, step: 1, container: content }));
 				break;
 			case "PageUp":
-				move(list_page_item(list, activeItem, -1, content));
+				move(list_page_item({ list, from: activeItem, step: -1, container: content }));
 				break;
 			case openKey:
 				if (!activeItem || !children.has(activeItem)) return;
@@ -578,7 +587,11 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 		if (childButton && item !== childButton && left?.item === childButton) {
 			const childContent = openChild?.getContent();
 			const area = childContent
-				? menu_grace_area(left.point, childButton.getBoundingClientRect(), childContent.getBoundingClientRect())
+				? menu_grace_area({
+					apex: left.point,
+					itemRect: childButton.getBoundingClientRect(),
+					submenuRect: childContent.getBoundingClientRect(),
+				})
 				: null;
 			endGrace();
 			if (area) grace = { ...area, timer: setTimeout(endGrace, MENU_GRACE_TIMEOUT) };

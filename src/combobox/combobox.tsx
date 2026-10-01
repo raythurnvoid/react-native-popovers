@@ -526,11 +526,11 @@ export const ComboboxItem = memo(function ComboboxItem(props: ComboboxItemProps)
 		const setText = typeof setValueOnClick === "function" ? setValueOnClick(click) : setValueOnClick;
 		const hideRule = hideOnClick ?? value !== undefined;
 		const hide = typeof hideRule === "function" ? hideRule(click) : hideRule;
-		combobox.pick(value, setText, hide);
+		combobox.pick({ value, setValue: setText, hide });
 	});
 
-	const merged = merge_render_props(
-		{
+	const merged = merge_render_props({
+		props: {
 			role: "option",
 			...rest,
 			id: id ?? generatedId,
@@ -539,9 +539,9 @@ export const ComboboxItem = memo(function ComboboxItem(props: ComboboxItemProps)
 			children,
 		},
 		render,
-		ITEM_EVENT_NAMES,
-		handleEvent,
-	);
+		internalNames: ITEM_EVENT_NAMES,
+		internal: handleEvent,
+	});
 
 	const setRef = useFn((node: HTMLElement) => {
 		element.current = node;
@@ -553,7 +553,7 @@ export const ComboboxItem = memo(function ComboboxItem(props: ComboboxItemProps)
 
 	useForwardRefs(element, [ref, renderElement?.props.ref as Ref<HTMLElement> | undefined]);
 
-	return render_element(render, merged, setRef, "div");
+	return render_element({ render, merged, ref: setRef, defaultTag: "div" });
 });
 // #endregion item
 
@@ -609,8 +609,8 @@ export const ComboboxCancel = memo(function ComboboxCancel(props: ComboboxCancel
 		combobox.clear();
 	});
 
-	const merged = merge_render_props(
-		{
+	const merged = merge_render_props({
+		props: {
 			"aria-label": "Clear input",
 			tabIndex: -1,
 			...(render ? {} : { type: "button" }),
@@ -618,9 +618,9 @@ export const ComboboxCancel = memo(function ComboboxCancel(props: ComboboxCancel
 			children,
 		},
 		render,
-		CANCEL_EVENT_NAMES,
-		handleEvent,
-	);
+		internalNames: CANCEL_EVENT_NAMES,
+		internal: handleEvent,
+	});
 
 	const setRef = useFn((node: HTMLElement) => {
 		element.current = node;
@@ -633,6 +633,6 @@ export const ComboboxCancel = memo(function ComboboxCancel(props: ComboboxCancel
 
 	useForwardRefs(element, [ref, renderElement?.props.ref as Ref<HTMLElement> | undefined]);
 
-	return render_element(render, merged, setRef, "button");
+	return render_element({ render, merged, ref: setRef, defaultTag: "button" });
 });
 // #endregion cancel

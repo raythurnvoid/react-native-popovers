@@ -110,7 +110,11 @@ export function createCombobox(initial: ComboboxOptions) {
 	// #region items
 	function items() {
 		const root = listbox();
-		return list_items(root, OPTION_SELECTOR, (item) => item.closest('[role="listbox"]') === root);
+		return list_items({
+			container: root,
+			selector: OPTION_SELECTOR,
+			owns: (item) => item.closest('[role="listbox"]') === root,
+		});
 	}
 
 	function enabledItems() {
@@ -295,9 +299,9 @@ export function createCombobox(initial: ComboboxOptions) {
 		const current = active.get();
 		const index = current ? enabled.indexOf(current) : -1;
 		if (event.key === "PageDown" || event.key === "PageUp") {
-			move(list_page_item(enabled, current, event.key === "PageDown" ? 1 : -1, listbox()));
+			move(list_page_item({ list: enabled, from: current, step: event.key === "PageDown" ? 1 : -1, container: listbox() }));
 		} else {
-			const next = list_step(enabled.length, index, event.key, "through-owner");
+			const next = list_step({ length: enabled.length, index, key: event.key, loop: "through-owner" });
 			if (next === -1) active.set(null, false);
 			else if (next !== undefined) move(enabled[next]);
 		}
@@ -390,7 +394,13 @@ export function createCombobox(initial: ComboboxOptions) {
 		/**
 		 * An option click. `setValueOnClick` writes the option value into the text, `hideOnClick` closes.
 		 */
-		pick(value: string | undefined, setValue: boolean, hide: boolean) {
+		pick(args: {
+			value: string | undefined;
+			setValue: boolean;
+			hide: boolean;
+		}) {
+			const { value, setValue, hide } = args;
+
 			if (setValue && value !== undefined) {
 				// An uncontrolled input keeps its text in the DOM.
 				if (options.value === undefined && input) input.value = value;

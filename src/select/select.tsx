@@ -196,9 +196,8 @@ export const Select = memo(function Select(props: SelectProps) {
 		select.handleTriggerKeyDown((event as KeyboardEvent<HTMLElement>).nativeEvent, typeahead);
 	});
 
-	const merged = merge_render_props(
-		// Like Ariakit, add the button type only to the default button.
-		{
+	const merged = merge_render_props({
+		props: {
 			id: id ?? generatedId,
 			role: "combobox",
 			"aria-autocomplete": "none",
@@ -207,9 +206,9 @@ export const Select = memo(function Select(props: SelectProps) {
 			children,
 		},
 		render,
-		TRIGGER_EVENT_NAMES,
-		handleEvent,
-	);
+		internalNames: TRIGGER_EVENT_NAMES,
+		internal: handleEvent,
+	});
 
 	const setRef = useFn((node: HTMLElement) => {
 		element.current = node;
@@ -225,9 +224,9 @@ export const Select = memo(function Select(props: SelectProps) {
 
 	// Safari does not focus a button on click. The tabindex makes it take focus, so focus restore and the
 	// outside rules see the trigger as the focused element, like Ariakit.
-	useFocusableTabIndex(element, !merged.disabled, merged.tabIndex !== undefined);
+	useFocusableTabIndex({ element, enabled: !merged.disabled, hasTabIndexProp: merged.tabIndex !== undefined });
 
-	return render_element(render, merged, setRef, "button");
+	return render_element({ render, merged, ref: setRef, defaultTag: "button" });
 });
 // #endregion trigger
 
@@ -581,8 +580,8 @@ const SelectItem = Object.assign(
 			if (hide) select.request(false, "select");
 		});
 
-		const merged = merge_render_props(
-			{
+		const merged = merge_render_props({
+			props: {
 				role: "option",
 				...rest,
 				id: id ?? generatedId,
@@ -591,9 +590,9 @@ const SelectItem = Object.assign(
 				children,
 			},
 			render,
-			ITEM_EVENT_NAMES,
-			handleEvent,
-		);
+			internalNames: ITEM_EVENT_NAMES,
+			internal: handleEvent,
+		});
 
 		const setRef = useFn((node: HTMLElement) => {
 			element.current = node;
@@ -611,7 +610,7 @@ const SelectItem = Object.assign(
 			if (element.current) select.registerItem(element.current, value);
 		}, [select, value]);
 
-		return render_element(render, merged, setRef, "div");
+		return render_element({ render, merged, ref: setRef, defaultTag: "div" });
 	}),
 	{
 		/**

@@ -43,7 +43,13 @@ async function toggles(page: Page) {
 	return page.evaluate(() => (window as unknown as { toggles: string[] }).toggles);
 }
 
-async function focusByKeyboard(page: Page, before: string, key = "Tab") {
+async function focusByKeyboard(args: {
+	page: Page;
+	before: string;
+	key?: string;
+}) {
+	const { page, before, key = "Tab" } = args;
+
 	await button(page, before).focus();
 	await page.keyboard.press(key);
 }
@@ -82,7 +88,13 @@ function center(value: { x: number; y: number; width: number; height: number }) 
  * Where the arrow center should be: at the anchor center, but at least 4px padding plus half the
  * 16px arrow away from the tooltip corners.
  */
-function aim(anchor: number, start: number, size: number) {
+function aim(args: {
+	anchor: number;
+	start: number;
+	size: number;
+}) {
+	const { anchor, start, size } = args;
+
 	return Math.min(Math.max(anchor, start + 4 + 8), start + size - 4 - 8);
 }
 
@@ -227,7 +239,7 @@ test("a pen hover opens the tooltip", async ({ page, browserName }) => {
 
 test("keyboard focus opens at once, blur closes", async ({ page }) => {
 	await openStory(page, "focus-open");
-	await focusByKeyboard(page, "Before");
+	await focusByKeyboard({ page, before: "Before" });
 	await expect(button(page, "Save")).toBeFocused();
 	await expect(tip(page)).toBeVisible({ timeout: 150 });
 
@@ -281,7 +293,7 @@ test("Escape closes, and the pointer stays blocked until it leaves and comes bac
 
 test("Escape on keyboard focus stays closed until a new focus", async ({ page }) => {
 	await openStory(page, "focus-open");
-	await focusByKeyboard(page, "Before");
+	await focusByKeyboard({ page, before: "Before" });
 	await expect(tip(page)).toBeVisible();
 	await page.keyboard.press("Escape");
 	await expect(tip(page)).toHaveCount(0);
@@ -421,7 +433,7 @@ test("a blur close does not start the warm window", async ({ page }) => {
 
 test("a blur close blocks the resting pointer but not the next focus", async ({ page }) => {
 	await openStory(page, "focus-open");
-	await focusByKeyboard(page, "Before");
+	await focusByKeyboard({ page, before: "Before" });
 	await expect(tip(page)).toBeVisible();
 	const save = await box(button(page, "Save"));
 	await page.mouse.move(save.x + 4, save.y + 4);
@@ -542,7 +554,7 @@ test("a disabled anchor is not a tab stop, even with a tabIndex prop", async ({ 
 	await expect(page.getByText("Due", { exact: true })).not.toHaveAttribute("tabindex");
 	await expect(page.getByRole("link", { name: "Docs" })).toHaveAttribute("tabindex", "-1");
 	await expect(page.getByRole("link", { name: "Docs" })).toHaveAttribute("aria-disabled", "true");
-	await focusByKeyboard(page, "Before");
+	await focusByKeyboard({ page, before: "Before" });
 	await expect(button(page, "After")).toBeFocused();
 	await page.getByText("Due", { exact: true }).hover();
 	await page.waitForTimeout(700);
@@ -570,7 +582,7 @@ test("focusable false: hover shows, Tab skips, focus does not show", async ({ pa
 	await expect(tip(page)).toHaveText("Drag to move", { timeout: 1000 });
 	await page.mouse.move(5, 5);
 
-	await focusByKeyboard(page, "Before");
+	await focusByKeyboard({ page, before: "Before" });
 	await expect(button(page, "Pinned")).toBeFocused();
 	await page.waitForTimeout(100);
 	await expectNoTip(page);
@@ -696,8 +708,8 @@ test("every placement sits on its side with the gutter and arrow gap", async ({ 
 		const edge = ({ top: "below", bottom: "above", left: "right", right: "left" } as const)[side as "top"];
 		expect(arrow.edge, placement).toBe(edge);
 		expect(arrow.rotate, placement).toBe(ARROW_ROTATE[edge]);
-		if (vertical) expect(arrow.x, placement).toBeCloseTo(aim(center(anchor).x, content.x, content.width), 0);
-		else expect(arrow.y, placement).toBeCloseTo(aim(center(anchor).y, content.y, content.height), 0);
+		if (vertical) expect(arrow.x, placement).toBeCloseTo(aim({ anchor: center(anchor).x, start: content.x, size: content.width }), 0);
+		else expect(arrow.y, placement).toBeCloseTo(aim({ anchor: center(anchor).y, start: content.y, size: content.height }), 0);
 	}
 });
 
@@ -776,9 +788,9 @@ test("after a flip or a slide, the arrow faces the anchor and points at its cent
 		expect(arrow.edge, item.label).toBe(item.edge);
 		expect(arrow.rotate, item.label).toBe(ARROW_ROTATE[item.edge]);
 		if (item.edge === "left" || item.edge === "right") {
-			expect(arrow.y, item.label).toBeCloseTo(aim(anchor.y, arrow.content.y, arrow.content.height), 0);
+			expect(arrow.y, item.label).toBeCloseTo(aim({ anchor: anchor.y, start: arrow.content.y, size: arrow.content.height }), 0);
 		} else {
-			expect(arrow.x, item.label).toBeCloseTo(aim(anchor.x, arrow.content.x, arrow.content.width), 0);
+			expect(arrow.x, item.label).toBeCloseTo(aim({ anchor: anchor.x, start: arrow.content.x, size: arrow.content.width }), 0);
 		}
 	}
 });
@@ -850,7 +862,11 @@ test("the arrow points at the anchor center and stays inside the tooltip box", a
 
 	const side = await arrowOf(page.getByRole("tooltip").filter({ hasText: "A tall tooltip" }));
 	expect(side.edge).toBe("left");
-	expect(side.y).toBeCloseTo(aim(center(await box(button(page, "Side"))).y, side.content.y, side.content.height), 0);
+	expect(side.y).toBeCloseTo(aim({
+		anchor: center(await box(button(page, "Side"))).y,
+		start: side.content.y,
+		size: side.content.height,
+	}), 0);
 });
 
 test("one tooltip with two anchors points its arrow at the current anchor", async ({ page }) => {
@@ -955,7 +971,7 @@ test("scrolling keeps the tooltip open and hides it while the anchor is out of v
 	);
 	await openStory(page, "scroll-container");
 	// Use keyboard focus. A scroll under a resting pointer is a pointer leave, which closes a hover tooltip.
-	await focusByKeyboard(page, "Item 2", "Shift+Tab");
+	await focusByKeyboard({ page, before: "Item 2", key: "Shift+Tab" });
 	await expect(tip(page)).toHaveText("Item 1");
 	await page.getByTestId("scroller").evaluate((node) => {
 		node.scrollTop = 400;

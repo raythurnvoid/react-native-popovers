@@ -8,7 +8,7 @@ const submenuLeft = { left: -208, right: -8, top: 95, bottom: 395 };
 
 describe("menu_grace_area", () => {
 	test("a submenu on the right builds a polygon from the apex to its four corners", () => {
-		expect(menu_grace_area({ x: 180, y: 110 }, item, submenuRight)).toEqual({
+		expect(menu_grace_area({ apex: { x: 180, y: 110 }, itemRect: item, submenuRect: submenuRight })).toEqual({
 			side: "right",
 			polygon: [
 				{ x: 175, y: 110 },
@@ -21,18 +21,22 @@ describe("menu_grace_area", () => {
 	});
 
 	test("a submenu that a CSS fallback flipped to the left gets the left side", () => {
-		const area = menu_grace_area({ x: 20, y: 110 }, item, submenuLeft);
+		const area = menu_grace_area({ apex: { x: 20, y: 110 }, itemRect: item, submenuRect: submenuLeft });
 		expect(area?.side).toBe("left");
 		expect(area?.polygon[0]).toEqual({ x: 25, y: 110 });
 	});
 
 	test("a submenu that overlaps the item has no grace area", () => {
-		expect(menu_grace_area({ x: 100, y: 110 }, item, { left: 100, right: 300, top: 132, bottom: 400 })).toBeNull();
+		expect(menu_grace_area({
+			apex: { x: 100, y: 110 },
+			itemRect: item,
+			submenuRect: { left: 100, right: 300, top: 132, bottom: 400 },
+		})).toBeNull();
 	});
 });
 
 describe("menu_grace_contains", () => {
-	const area = menu_grace_area({ x: 180, y: 110 }, item, submenuRight)!;
+	const area = menu_grace_area({ apex: { x: 180, y: 110 }, itemRect: item, submenuRect: submenuRight })!;
 
 	test("a diagonal path from the item toward the submenu bottom stays inside", () => {
 		// The pointer crosses the other items below it on its way down and right.

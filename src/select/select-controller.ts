@@ -166,7 +166,11 @@ export function createSelect(initial: SelectOptions, defaultValue: SelectValue) 
 	// #region items
 	function items() {
 		const root = listbox();
-		return list_items(root, OPTION_SELECTOR, (item) => item.closest('[role="listbox"]') === root);
+		return list_items({
+			container: root,
+			selector: OPTION_SELECTOR,
+			owns: (item) => item.closest('[role="listbox"]') === root,
+		});
 	}
 
 	function enabledItems() {
@@ -437,7 +441,7 @@ export function createSelect(initial: SelectOptions, defaultValue: SelectValue) 
 		}
 		const enabled = enabledItems();
 		const texts = enabled.map((item) => typeahead_normalize(typeahead_text(item)));
-		const next = typeahead_next(texts, from ? enabled.indexOf(from) : -1, typeaheadBuffer, event.key);
+		const next = typeahead_next({ texts, activeIndex: from ? enabled.indexOf(from) : -1, buffer: typeaheadBuffer, key: event.key });
 		typeaheadBuffer = next.buffer;
 		typeaheadTimer = setTimeout(() => {
 			typeaheadBuffer = "";
@@ -491,7 +495,12 @@ export function createSelect(initial: SelectOptions, defaultValue: SelectValue) 
 			// The focus owner is the listbox, or the search input in a search select.
 			owner()?.focus({ preventScroll: true });
 			const enabled = enabledItems();
-			const next = list_step(enabled.length, active.get() ? enabled.indexOf(active.get()!) : -1, event.key, "none");
+			const next = list_step({
+				length: enabled.length,
+				index: active.get() ? enabled.indexOf(active.get()!) : -1,
+				key: event.key,
+				loop: "none",
+			});
 			if (next !== undefined) move(enabled[next]);
 			return;
 		}
@@ -539,15 +548,15 @@ export function createSelect(initial: SelectOptions, defaultValue: SelectValue) 
 			case "Home":
 			case "End": {
 				// No loop at the ends, like Ariakit's select.
-				const next = list_step(enabled.length, index, event.key, "none");
+				const next = list_step({ length: enabled.length, index, key: event.key, loop: "none" });
 				if (next !== undefined) move(enabled[next]);
 				break;
 			}
 			case "PageDown":
-				move(list_page_item(enabled, current, 1, content));
+				move(list_page_item({ list: enabled, from: current, step: 1, container: content }));
 				break;
 			case "PageUp":
-				move(list_page_item(enabled, current, -1, content));
+				move(list_page_item({ list: enabled, from: current, step: -1, container: content }));
 				break;
 			case "Enter":
 				// Enter with no active option closes the list, like Ariakit's `hideOnEnter`.
@@ -588,7 +597,7 @@ export function createSelect(initial: SelectOptions, defaultValue: SelectValue) 
 			case "ArrowDown":
 			case "ArrowUp": {
 				autoSelectArmed = false;
-				const next = list_step(enabled.length, index, event.key, "through-owner");
+				const next = list_step({ length: enabled.length, index, key: event.key, loop: "through-owner" });
 				if (next === -1) active.set(null, false);
 				else if (next !== undefined) move(enabled[next]);
 				break;
@@ -597,13 +606,13 @@ export function createSelect(initial: SelectOptions, defaultValue: SelectValue) 
 			case "End":
 				if (!current) return;
 				autoSelectArmed = false;
-				move(enabled[list_step(enabled.length, index, event.key, "none")!]);
+				move(enabled[list_step({ length: enabled.length, index, key: event.key, loop: "none" })!]);
 				break;
 			case "PageDown":
 			case "PageUp":
 				if (!current) return;
 				autoSelectArmed = false;
-				move(list_page_item(enabled, current, event.key === "PageDown" ? 1 : -1, list));
+				move(list_page_item({ list: enabled, from: current, step: event.key === "PageDown" ? 1 : -1, container: list }));
 				break;
 			case "Enter":
 				// Enter never submits a form around the search input, like Ariakit's combobox.

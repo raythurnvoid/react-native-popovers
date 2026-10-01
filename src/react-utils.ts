@@ -38,12 +38,14 @@ type EventHandler = (event: SyntheticEvent<HTMLElement>) => void;
  * `internalNames`, `internal` runs last, after the caller handlers. It decides by itself whether
  * an earlier `preventDefault()` stops it.
  */
-export function merge_render_props(
-	props: Record<string, unknown>,
-	render: RenderProp | undefined,
-	internalNames: ReadonlySet<string>,
-	internal: (name: string, event: SyntheticEvent<HTMLElement>) => void,
-) {
+export function merge_render_props(args: {
+	props: Record<string, unknown>;
+	render: RenderProp | undefined;
+	internalNames: ReadonlySet<string>;
+	internal: (name: string, event: SyntheticEvent<HTMLElement>) => void;
+}) {
+	const { props, render, internalNames, internal } = args;
+
 	const elementProps: Record<string, unknown> = isValidElement<Record<string, unknown>>(render) ? render.props : {};
 	const merged: Record<string, unknown> = { ...props };
 	for (const [key, value] of Object.entries(elementProps)) {
@@ -70,12 +72,14 @@ export function merge_render_props(
 /**
  * Render `render` with the merged props and `ref`, or `defaultTag` when there is no `render`.
  */
-export function render_element(
-	render: RenderProp | undefined,
-	merged: Record<string, unknown>,
-	ref: RefCallback<HTMLElement>,
-	defaultTag: string,
-) {
+export function render_element(args: {
+	render: RenderProp | undefined;
+	merged: Record<string, unknown>;
+	ref: RefCallback<HTMLElement>;
+	defaultTag: string;
+}) {
+	const { render, merged, ref, defaultTag } = args;
+
 	if (typeof render === "function") return render({ ...(merged as HTMLAttributes<HTMLElement>), ref });
 	if (isValidElement(render)) return createElement(render.type, { ...merged, ref, key: render.key });
 	return createElement(defaultTag, { ...merged, ref });
@@ -86,11 +90,13 @@ export function render_element(
  * in Safari. The check needs the DOM node, so it runs after each render. With `enabled` false, a
  * tabindex that this hook added is removed again. A tabIndex prop always wins.
  */
-export function useFocusableTabIndex(
-	element: RefObject<HTMLElement | null>,
-	enabled: boolean,
-	hasTabIndexProp: boolean,
-) {
+export function useFocusableTabIndex(args: {
+	element: RefObject<HTMLElement | null>;
+	enabled: boolean;
+	hasTabIndexProp: boolean;
+}) {
+	const { element, enabled, hasTabIndexProp } = args;
+
 	// The node that got the tabindex from this hook, so only that attribute is removed later.
 	const addedTo = useRef<HTMLElement | null>(null);
 

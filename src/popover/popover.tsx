@@ -122,13 +122,12 @@ export const PopoverDisclosure = memo(function PopoverDisclosure(props: PopoverD
 		popover.request(!popover.getSnapshot().open, "toggle");
 	});
 
-	const merged = merge_render_props(
-		// Like Ariakit, add the button type only to the default button.
-		{ "aria-haspopup": "dialog", ...(render ? {} : { type: "button" }), ...rest, children },
+	const merged = merge_render_props({
+		props: { "aria-haspopup": "dialog", ...(render ? {} : { type: "button" }), ...rest, children },
 		render,
-		CLICK_EVENT_NAMES,
-		(_name, event) => handleClick(event),
-	);
+		internalNames: CLICK_EVENT_NAMES,
+		internal: (_name, event) => handleClick(event),
+	});
 
 	const setRef = useFn((node: HTMLElement) => {
 		element.current = node;
@@ -144,9 +143,9 @@ export const PopoverDisclosure = memo(function PopoverDisclosure(props: PopoverD
 
 	// Safari does not focus a button on click. The tabindex makes it take focus, so focus restore
 	// and the outside rules see the disclosure as the focused element, like Ariakit.
-	useFocusableTabIndex(element, !merged.disabled, merged.tabIndex !== undefined);
+	useFocusableTabIndex({ element, enabled: !merged.disabled, hasTabIndexProp: merged.tabIndex !== undefined });
 
-	return render_element(render, merged, setRef, "button");
+	return render_element({ render, merged, ref: setRef, defaultTag: "button" });
 });
 // #endregion disclosure
 
@@ -329,12 +328,12 @@ export const PopoverDismiss = memo(function PopoverDismiss(props: PopoverDismiss
 		popover.request(false, "dismiss");
 	});
 
-	const merged = merge_render_props(
-		{ ...(render ? {} : { type: "button" }), ...rest, children },
+	const merged = merge_render_props({
+		props: { ...(render ? {} : { type: "button" }), ...rest, children },
 		render,
-		CLICK_EVENT_NAMES,
-		(_name, event) => handleClick(event),
-	);
+		internalNames: CLICK_EVENT_NAMES,
+		internal: (_name, event) => handleClick(event),
+	});
 
 	const setRef = useFn((node: HTMLElement) => {
 		element.current = node;
@@ -345,6 +344,6 @@ export const PopoverDismiss = memo(function PopoverDismiss(props: PopoverDismiss
 
 	useForwardRefs(element, [ref, renderElement?.props.ref as Ref<HTMLElement> | undefined]);
 
-	return render_element(render, merged, setRef, "button");
+	return render_element({ render, merged, ref: setRef, defaultTag: "button" });
 });
 // #endregion dismiss

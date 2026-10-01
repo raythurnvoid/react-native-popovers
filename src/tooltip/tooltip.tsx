@@ -218,9 +218,13 @@ export const TooltipAnchor = memo(function TooltipAnchor(props: TooltipAnchorPro
 		}
 	});
 
-	const merged = merge_render_props({ ...rest, children }, render, ANCHOR_EVENT_NAMES, (name, event) =>
+	const merged = merge_render_props({
+		props: { ...rest, children },
+		render,
+		internalNames: ANCHOR_EVENT_NAMES,
+		internal: (name, event) =>
 		handleInternal(name as AnchorEventName, event),
-	);
+	});
 	if (disabled) {
 		merged["aria-disabled"] = true;
 		// Take a disabled anchor out of the tab order, even when it has a tabIndex prop, like Ariakit.
@@ -242,9 +246,9 @@ export const TooltipAnchor = memo(function TooltipAnchor(props: TooltipAnchorPro
 
 	useForwardRefs(element, [ref, renderElement?.props.ref as Ref<HTMLElement> | undefined]);
 
-	useFocusableTabIndex(element, focusable && !disabled, merged.tabIndex !== undefined);
+	useFocusableTabIndex({ element, enabled: focusable && !disabled, hasTabIndexProp: merged.tabIndex !== undefined });
 
-	return render_element(render, merged, setRef, "div");
+	return render_element({ render, merged, ref: setRef, defaultTag: "div" });
 });
 // #endregion anchor
 

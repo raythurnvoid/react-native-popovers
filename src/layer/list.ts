@@ -14,7 +14,14 @@ export type ListStepKey = "ArrowDown" | "ArrowUp" | "Home" | "End";
  * item's index, or -1 when no item is active. Returns -1 for "no active item" (only with
  * `through-owner`), or `undefined` when the key does not move.
  */
-export function list_step(length: number, index: number, key: ListStepKey, loop: ListLoop) {
+export function list_step(args: {
+	length: number;
+	index: number;
+	key: ListStepKey;
+	loop: ListLoop;
+}) {
+	const { length, index, key, loop } = args;
+
 	if (length === 0) return undefined;
 	switch (key) {
 		case "Home":
@@ -51,7 +58,13 @@ function list_rendered_in(item: HTMLElement, container: HTMLElement) {
  * nested inside this one, such as a submenu. Hidden items (`display: none`) are skipped. While the
  * container is shown, `checkVisibility()` decides. While it is hidden, the ancestors decide.
  */
-export function list_items(container: HTMLElement | null, selector: string, owns: (item: HTMLElement) => boolean) {
+export function list_items(args: {
+	container: HTMLElement | null;
+	selector: string;
+	owns: (item: HTMLElement) => boolean;
+}) {
+	const { container, selector, owns } = args;
+
 	if (!container) return [];
 	const shown = container.checkVisibility();
 	return [...container.querySelectorAll<HTMLElement>(selector)].filter(
@@ -97,12 +110,14 @@ export function list_active(owner: () => HTMLElement | null, onChange?: (item: H
  * within one scroll-container height of `from`. At the end, it is the last item. With no `from`,
  * PageDown goes to the first item and PageUp to the last.
  */
-export function list_page_item(
-	list: HTMLElement[],
-	from: HTMLElement | null,
-	step: 1 | -1,
-	container: HTMLElement | null,
-) {
+export function list_page_item(args: {
+	list: HTMLElement[];
+	from: HTMLElement | null;
+	step: 1 | -1;
+	container: HTMLElement | null;
+}) {
+	const { list, from, step, container } = args;
+
 	const start = from ? list.indexOf(from) : -1;
 	if (!from || start === -1) return step > 0 ? list[0] : list.at(-1);
 	let scroller: HTMLElement | null = from.parentElement;

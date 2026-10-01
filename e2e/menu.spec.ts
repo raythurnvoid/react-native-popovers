@@ -121,7 +121,14 @@ async function hoverOpen(page: Page, name: string) {
  * The items of a menu that a straight move from `start` to `end` in `steps` steps crosses. A test
  * uses it to prove that its path really crosses another item.
  */
-async function crossedItems(page: Page, start: Point, end: Point, steps: number) {
+async function crossedItems(args: {
+	page: Page;
+	start: Point;
+	end: Point;
+	steps: number;
+}) {
+	const { page, start, end, steps } = args;
+
 	return page.evaluate(
 		({ start, end, steps }) => {
 			const names = new Set<string>();
@@ -971,7 +978,7 @@ test("RTL: a diagonal move across other items toward a submenu on the left keeps
 	const start = { x: trigger.x + 10, y: trigger.y + trigger.height / 2 };
 	const end = { x: submenu.x + submenu.width - 20, y: submenu.y + submenu.height - 20 };
 	const steps = 20;
-	expect(await crossedItems(page, start, end, steps)).toContain("Copy link");
+	expect(await crossedItems({ page, start, end, steps })).toContain("Copy link");
 
 	await page.mouse.move(start.x, start.y);
 	await page.mouse.move(end.x, end.y, { steps });
@@ -1045,7 +1052,7 @@ test("a diagonal move across other items toward the submenu keeps it open", asyn
 	const steps = 20;
 
 	// Prove the path really crosses another item of the parent menu.
-	const crossed = await crossedItems(page, start, end, steps);
+	const crossed = await crossedItems({ page, start, end, steps });
 	expect(crossed).toContain("Copy link");
 
 	await page.mouse.move(start.x, start.y);
@@ -1072,7 +1079,7 @@ test("a flipped submenu: the grace area follows it up, and a crossed submenu ite
 	const start = { x: trigger.x + trigger.width - 10, y: trigger.y + trigger.height / 2 };
 	const end = { x: submenu.x + 20, y: submenu.y + 20 };
 	const steps = 20;
-	const crossed = await crossedItems(page, start, end, steps);
+	const crossed = await crossedItems({ page, start, end, steps });
 	expect(crossed).toContain("Turn into ›");
 
 	await page.mouse.move(start.x, start.y);

@@ -183,14 +183,12 @@ export const MenuButton = memo(function MenuButton(props: MenuButtonProps) {
 		menu.openFromButton(reason);
 	});
 
-	const merged = merge_render_props(
-		// Like Ariakit, add the button type only to the default button. A wrapper can pass `id={undefined}`,
-		// so fall back to the generated id: the menu takes its name from this id.
-		{ id: id ?? generatedId, "aria-haspopup": "menu", ...(render ? {} : { type: "button" }), ...rest, children },
+	const merged = merge_render_props({
+		props: { id: id ?? generatedId, "aria-haspopup": "menu", ...(render ? {} : { type: "button" }), ...rest, children },
 		render,
-		BUTTON_EVENT_NAMES,
-		handleEvent,
-	);
+		internalNames: BUTTON_EVENT_NAMES,
+		internal: handleEvent,
+	});
 
 	const setRef = useFn((node: HTMLElement) => {
 		element.current = node;
@@ -206,9 +204,13 @@ export const MenuButton = memo(function MenuButton(props: MenuButtonProps) {
 
 	// Safari does not focus a button on click. The tabindex makes it take focus, so focus restore and
 	// the outside rules see the button as the focused element, like Ariakit. A submenu item keeps -1.
-	useFocusableTabIndex(element, !menu.isSubmenu && !merged.disabled, merged.tabIndex !== undefined);
+	useFocusableTabIndex({
+		element,
+		enabled: !menu.isSubmenu && !merged.disabled,
+		hasTabIndexProp: merged.tabIndex !== undefined,
+	});
 
-	return render_element(render, merged, setRef, "button");
+	return render_element({ render, merged, ref: setRef, defaultTag: "button" });
 });
 // #endregion button
 
@@ -453,8 +455,8 @@ export const MenuItem = memo(function MenuItem(props: MenuItemProps) {
 		menu.closeAll("select");
 	});
 
-	const merged = merge_render_props(
-		{
+	const merged = merge_render_props({
+		props: {
 			role: "menuitem",
 			...rest,
 			id: id ?? generatedId,
@@ -463,9 +465,9 @@ export const MenuItem = memo(function MenuItem(props: MenuItemProps) {
 			children,
 		},
 		render,
-		ITEM_EVENT_NAMES,
-		handleEvent,
-	);
+		internalNames: ITEM_EVENT_NAMES,
+		internal: handleEvent,
+	});
 
 	const setRef = useFn((node: HTMLElement) => {
 		element.current = node;
@@ -476,7 +478,7 @@ export const MenuItem = memo(function MenuItem(props: MenuItemProps) {
 
 	useForwardRefs(element, [ref, renderElement?.props.ref as Ref<HTMLElement> | undefined]);
 
-	return render_element(render, merged, setRef, "div");
+	return render_element({ render, merged, ref: setRef, defaultTag: "div" });
 });
 // #endregion item
 
@@ -590,7 +592,12 @@ export const ContextMenuTrigger = memo(function ContextMenuTrigger(props: Contex
 		menu.openAt(event.currentTarget, null);
 	});
 
-	const merged = merge_render_props({ ...rest, children }, render, CONTEXT_MENU_EVENT_NAMES, handleEvent);
+	const merged = merge_render_props({
+		props: { ...rest, children },
+		render,
+		internalNames: CONTEXT_MENU_EVENT_NAMES,
+		internal: handleEvent,
+	});
 
 	const setRef = useFn((node: HTMLElement) => {
 		element.current = node;
@@ -603,6 +610,6 @@ export const ContextMenuTrigger = memo(function ContextMenuTrigger(props: Contex
 
 	useLayoutEffect(() => menu.registerContextTrigger(), [menu]);
 
-	return render_element(render, merged, setRef, "div");
+	return render_element({ render, merged, ref: setRef, defaultTag: "div" });
 });
 // #endregion context menu trigger

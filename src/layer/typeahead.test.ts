@@ -41,36 +41,36 @@ describe("typeahead_next", () => {
 	const baseline = ["cut", "copy", "show archived items", "upload file"];
 
 	test("the same letter cycles after the active item and wraps", () => {
-		const first = typeahead_next(baseline, 0, "", "c");
+		const first = typeahead_next({ texts: baseline, activeIndex: 0, buffer: "", key: "c" });
 		expect(first).toEqual({ index: 1, buffer: "c" });
 
-		const second = typeahead_next(baseline, first.index, first.buffer, "c");
+		const second = typeahead_next({ texts: baseline, activeIndex: first.index, buffer: first.buffer, key: "c" });
 		expect(second).toEqual({ index: 0, buffer: "c" });
 	});
 
 	test("a letter whose only match is already active finds nothing, so the active item stays", () => {
-		expect(typeahead_next(baseline, 0, "", "u")).toEqual({ index: 3, buffer: "u" });
-		expect(typeahead_next(baseline, 3, "u", "u")).toEqual({ index: -1, buffer: "" });
+		expect(typeahead_next({ texts: baseline, activeIndex: 0, buffer: "", key: "u" })).toEqual({ index: 3, buffer: "u" });
+		expect(typeahead_next({ texts: baseline, activeIndex: 3, buffer: "u", key: "u" })).toEqual({ index: -1, buffer: "" });
 	});
 
 	test("no match clears the buffer and keeps the active item", () => {
-		expect(typeahead_next(baseline, 0, "", "p")).toEqual({ index: -1, buffer: "" });
+		expect(typeahead_next({ texts: baseline, activeIndex: 0, buffer: "", key: "p" })).toEqual({ index: -1, buffer: "" });
 	});
 
 	test("searches from the top when the active item does not start with the letter", () => {
 		// Radix would pick "avocado" here, because it searches after the active item.
-		expect(typeahead_next(["apple", "banana", "avocado"], 1, "", "a")).toEqual({ index: 0, buffer: "a" });
+		expect(typeahead_next({ texts: ["apple", "banana", "avocado"], activeIndex: 1, buffer: "", key: "a" })).toEqual({ index: 0, buffer: "a" });
 	});
 
 	test("with no active item, the first match wins", () => {
-		expect(typeahead_next(baseline, -1, "", "s")).toEqual({ index: 2, buffer: "s" });
+		expect(typeahead_next({ texts: baseline, activeIndex: -1, buffer: "", key: "s" })).toEqual({ index: 2, buffer: "s" });
 	});
 
 	test("more letters narrow the search", () => {
 		const texts = ["copy", "cut", "cursor"];
-		const first = typeahead_next(texts, -1, "", "c");
-		const second = typeahead_next(texts, first.index, first.buffer, "u");
-		const third = typeahead_next(texts, second.index, second.buffer, "r");
+		const first = typeahead_next({ texts, activeIndex: -1, buffer: "", key: "c" });
+		const second = typeahead_next({ texts, activeIndex: first.index, buffer: first.buffer, key: "u" });
+		const third = typeahead_next({ texts, activeIndex: second.index, buffer: second.buffer, key: "r" });
 		expect([first, second, third]).toEqual([
 			{ index: 0, buffer: "c" },
 			{ index: 1, buffer: "cu" },
@@ -79,15 +79,15 @@ describe("typeahead_next", () => {
 	});
 
 	test("a repeated letter keeps growing while the active item still matches the whole buffer", () => {
-		expect(typeahead_next(["cc one", "c two"], 0, "c", "c")).toEqual({ index: 0, buffer: "cc" });
+		expect(typeahead_next({ texts: ["cc one", "c two"], activeIndex: 0, buffer: "c", key: "c" })).toEqual({ index: 0, buffer: "cc" });
 	});
 
 	test("uppercase and accented keys match normalized text", () => {
-		expect(typeahead_next(["apple", "eclair"], -1, "", "E")).toEqual({ index: 1, buffer: "e" });
-		expect(typeahead_next(["apple", "eclair"], -1, "", "é")).toEqual({ index: 1, buffer: "e" });
+		expect(typeahead_next({ texts: ["apple", "eclair"], activeIndex: -1, buffer: "", key: "E" })).toEqual({ index: 1, buffer: "e" });
+		expect(typeahead_next({ texts: ["apple", "eclair"], activeIndex: -1, buffer: "", key: "é" })).toEqual({ index: 1, buffer: "e" });
 	});
 
 	test("Space inside a search matches words with spaces", () => {
-		expect(typeahead_next(baseline, 2, "show", " ")).toEqual({ index: 2, buffer: "show " });
+		expect(typeahead_next({ texts: baseline, activeIndex: 2, buffer: "show", key: " " })).toEqual({ index: 2, buffer: "show " });
 	});
 });

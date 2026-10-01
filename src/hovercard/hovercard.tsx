@@ -159,7 +159,7 @@ export const HovercardAnchor = memo(function HovercardAnchor(props: HovercardAnc
 		}
 	});
 
-	const merged = merge_render_props({ ...rest, children }, render, ANCHOR_EVENT_NAMES, handleEvent);
+	const merged = merge_render_props({ props: { ...rest, children }, render, internalNames: ANCHOR_EVENT_NAMES, internal: handleEvent });
 
 	const setRef = useFn((node: HTMLElement) => {
 		element.current = node;
@@ -173,7 +173,7 @@ export const HovercardAnchor = memo(function HovercardAnchor(props: HovercardAnc
 
 	useForwardRefs(element, [ref, renderElement?.props.ref as Ref<HTMLElement> | undefined]);
 
-	return render_element(render, merged, setRef, "a");
+	return render_element({ render, merged, ref: setRef, defaultTag: "a" });
 });
 // #endregion anchor
 
@@ -205,13 +205,12 @@ export const HovercardDisclosure = memo(function HovercardDisclosure(props: Hove
 		hovercard.toggleFromDisclosure();
 	});
 
-	const merged = merge_render_props(
-		// Like Ariakit, add the button type only to the default button.
-		{ "aria-haspopup": "dialog", ...(render ? {} : { type: "button" }), ...rest, children },
+	const merged = merge_render_props({
+		props: { "aria-haspopup": "dialog", ...(render ? {} : { type: "button" }), ...rest, children },
 		render,
-		CLICK_EVENT_NAMES,
-		(_name, event) => handleClick(event),
-	);
+		internalNames: CLICK_EVENT_NAMES,
+		internal: (_name, event) => handleClick(event),
+	});
 
 	const setRef = useFn((node: HTMLElement) => {
 		element.current = node;
@@ -227,9 +226,9 @@ export const HovercardDisclosure = memo(function HovercardDisclosure(props: Hove
 
 	// Safari does not focus a button on click. The tabindex makes it take focus, so focus restore and
 	// the outside rules see the disclosure as the focused element, like Ariakit.
-	useFocusableTabIndex(element, !merged.disabled, merged.tabIndex !== undefined);
+	useFocusableTabIndex({ element, enabled: !merged.disabled, hasTabIndexProp: merged.tabIndex !== undefined });
 
-	return render_element(render, merged, setRef, "button");
+	return render_element({ render, merged, ref: setRef, defaultTag: "button" });
 });
 // #endregion disclosure
 
