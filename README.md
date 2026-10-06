@@ -247,7 +247,7 @@ The names match the Ariakit pieces that `MyMenu` and `MyContextMenu` used:
 - `MenuProvider` — `placement`, `open`, `setOpen`, `children`. A `MenuProvider` inside a `Menu` makes a submenu.
 - `MenuButton` — `render` (an element or a function), `children`, and any HTML props. For a submenu item, render it as a `MenuItem`: `<MenuButton render={<MenuItem />}>Color</MenuButton>`.
 - `Menu` — `children`, `gutter`, `shift`, `overflowPadding`, `unmountOnHide`, `portal`, `portalElement`, and any div props for the content.
-- `MenuItem` — `render`, `children`, `disabled`, `hideOnClick`, and any HTML props.
+- `MenuItem` — `render`, `children`, `disabled`, `accessibleWhenDisabled`, `hideOnClick`, and any HTML props.
 - `MenuItemCheckbox` — `checked`, plus the `MenuItem` props.
 - `MenuItemRadio` — `checked`, plus the `MenuItem` props. One choice of a set. When a menu has more than one set, put each in its own `MenuGroup`.
 - `MenuGroup` and `MenuGroupLabel` — div props. A label inside a group names the group.
@@ -267,8 +267,8 @@ Ariakit is the behavior reference, with the changes listed below. These are chec
 
 - A click on the button opens the menu with focus on it and no active item. Enter, Space, and ArrowDown open it with the first item active. ArrowUp opens it with the last one. The open keys follow the placement: a `right-start` button opens with ArrowRight (ArrowLeft in RTL, where it opens on the left).
 - A second click closes. The button click never closes and reopens.
-- Arrow keys, Home, End, PageUp, and PageDown move the active item. They do not loop, and they skip disabled items. Keys in a long menu never scroll the page.
-- Typeahead: letters and digits move to the next item that starts with them. Accents are ignored. A repeated letter cycles. The search resets after 500 ms. Disabled items never match. Text inside an `aria-hidden="true"` element does not count, so a hidden icon or sample letter before the name does not block the name.
+- Arrow keys, Home, End, PageUp, and PageDown move the active item. They do not loop, and they skip disabled items. Keys in a long menu never scroll the page. A disabled item with `accessibleWhenDisabled` is not skipped: the keys and typeahead reach it, so a keyboard user can read why it is disabled, but it still does nothing and still ignores the pointer. It gets `data-accessible-when-disabled`.
+- Typeahead: letters and digits move to the next item that starts with them. Accents are ignored. A repeated letter cycles. The search resets after 500 ms. Disabled items never match, unless they have `accessibleWhenDisabled`. Text inside an `aria-hidden="true"` element does not count, so a hidden icon or sample letter before the name does not block the name.
 - Enter (on keydown), Space (on keyup), and a click run the item and close every level. Focus goes back to the root button. `hideOnClick={false}` keeps the menu open. A checkbox item toggles `aria-checked` and stays open. A radio item stays open too, and the caller moves `checked` to it. A disabled item does nothing. Ctrl, Cmd, or Alt+click on a link item keeps the menu open.
 - Escape closes one level. Focus goes to the parent menu, with the submenu item active, or to the button.
 - Tab closes and moves focus past the button. It also closes when focus lands on a button inside a context menu trigger row, which Chromium and WebKit put right after the menu. Shift+Tab moves focus to the button and keeps the menu open.

@@ -414,9 +414,15 @@ export type MenuItemProps = HTMLAttributes<HTMLElement> & {
 	render?: RenderProp;
 	/**
 	 * A disabled item keeps `aria-disabled="true"`, ignores clicks, and is skipped by the keys and
-	 * by typeahead.
+	 * by typeahead, unless `accessibleWhenDisabled` is set.
 	 */
 	disabled?: boolean;
+	/**
+	 * Let the keys and typeahead still reach a disabled item, like Ariakit. A click, Enter, or Space
+	 * still does nothing. Use it when the item says why it is disabled, so a keyboard user can read it.
+	 * @default false
+	 */
+	accessibleWhenDisabled?: boolean;
 	/**
 	 * Close every menu level after a click.
 	 * @default true
@@ -431,7 +437,16 @@ const ITEM_EVENT_NAMES = new Set(["onClick", "onClickCapture"]);
  * menu, and focus goes back to the button.
  */
 export const MenuItem = memo(function MenuItem(props: MenuItemProps) {
-	const { ref, render, disabled = false, hideOnClick = true, id, children, ...rest } = props;
+	const {
+		ref,
+		render,
+		disabled = false,
+		accessibleWhenDisabled = false,
+		hideOnClick = true,
+		id,
+		children,
+		...rest
+	} = props;
 	const menu = useMenuLevel("MenuItem");
 	const renderElement = isValidElement<Record<string, unknown>>(render) ? render : null;
 	const element = useRef<HTMLElement | null>(null);
@@ -462,6 +477,8 @@ export const MenuItem = memo(function MenuItem(props: MenuItemProps) {
 			id: id ?? generatedId,
 			tabIndex: -1,
 			"aria-disabled": disabled || undefined,
+			// The controller reads this from the DOM: `list_enabled` keeps the item for the keys.
+			"data-accessible-when-disabled": (disabled && accessibleWhenDisabled) || undefined,
 			children,
 		},
 		render,

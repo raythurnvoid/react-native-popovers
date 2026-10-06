@@ -73,10 +73,13 @@ export function list_items(args: {
 }
 
 /**
- * The items a key or typeahead can reach: the ones without `aria-disabled="true"`.
+ * The items a key or typeahead can reach: the ones without `aria-disabled="true"`, plus the disabled
+ * ones marked `data-accessible-when-disabled` (a menu item's `accessibleWhenDisabled`).
  */
 export function list_enabled(items: HTMLElement[]) {
-	return items.filter((item) => item.getAttribute("aria-disabled") !== "true");
+	return items.filter(
+		(item) => item.getAttribute("aria-disabled") !== "true" || item.hasAttribute("data-accessible-when-disabled"),
+	);
 }
 
 /**
