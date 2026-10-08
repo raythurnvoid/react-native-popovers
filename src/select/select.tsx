@@ -530,9 +530,15 @@ export type SelectItemProps = HTMLAttributes<HTMLElement> & {
 	value: string;
 	/**
 	 * A disabled option keeps `aria-disabled="true"`, ignores clicks, and is skipped by the keys and by
-	 * typeahead.
+	 * typeahead, unless `accessibleWhenDisabled` is set.
 	 */
 	disabled?: boolean;
+	/**
+	 * Let the keys and typeahead still reach a disabled option, like Ariakit. A click, Enter, or Space
+	 * still does nothing. Use it when the option says why it is disabled, so a keyboard user can read it.
+	 * @default false
+	 */
+	accessibleWhenDisabled?: boolean;
 	/**
 	 * Pick this option's value on click, Enter, or Space. A function gets the click event, so a button
 	 * inside the option can say no.
@@ -557,7 +563,18 @@ const ITEM_EVENT_NAMES = new Set(["onClick", "onClickCapture"]);
  */
 const SelectItem = Object.assign(
 	memo(function SelectItem(props: SelectItemProps) {
-		const { ref, render, value, disabled = false, setValueOnClick = true, hideOnClick, id, children, ...rest } = props;
+		const {
+			ref,
+			render,
+			value,
+			disabled = false,
+			accessibleWhenDisabled = false,
+			setValueOnClick = true,
+			hideOnClick,
+			id,
+			children,
+			...rest
+		} = props;
 		const select = useSelectContext("SelectItem");
 		const renderElement = isValidElement<Record<string, unknown>>(render) ? render : null;
 		const element = useRef<HTMLElement | null>(null);
@@ -587,6 +604,8 @@ const SelectItem = Object.assign(
 				id: id ?? generatedId,
 				tabIndex: -1,
 				"aria-disabled": disabled || undefined,
+				// The controller reads this from the DOM: `list_enabled` keeps the option for the keys.
+				"data-accessible-when-disabled": (disabled && accessibleWhenDisabled) || undefined,
 				children,
 			},
 			render,

@@ -74,7 +74,7 @@ export function list_items(args: {
 
 /**
  * The items a key or typeahead can reach: the ones without `aria-disabled="true"`, plus the disabled
- * ones marked `data-accessible-when-disabled` (a menu item's `accessibleWhenDisabled`).
+ * ones marked `data-accessible-when-disabled` (the `accessibleWhenDisabled` of a menu item or an option).
  */
 export function list_enabled(items: HTMLElement[]) {
 	return items.filter(

@@ -352,7 +352,7 @@ The names match the Ariakit pieces that `MySelect` and `MySearchSelect` used:
 - `SelectPopover` — `children`, `gutter`, `sameWidth`, `overflowPadding`, `unmountOnHide`, `autoFocusOnShow`, `anchorRect`, `portal`, `portalElement`, and any div props for the content.
 - `SelectSearch` — input props plus `autoSelect`. With it, the popup is a `role="dialog"` and the options go in a `SelectList`.
 - `SelectList` — div props. The `role="listbox"` of a select that has a `SelectSearch`.
-- `SelectItem` — `value`, `render`, `children`, `disabled`, `setValueOnClick`, `hideOnClick`, and any HTML props.
+- `SelectItem` — `value`, `render`, `children`, `disabled`, `accessibleWhenDisabled`, `setValueOnClick`, `hideOnClick`, and any HTML props.
 - `SelectGroup` and `SelectGroupLabel` — div props, shared with the menu (`src/layer/group.tsx`).
 - `SelectItem.useActive(value)` — whether that option is active. See "Inline row actions".
 
@@ -369,7 +369,7 @@ Focus is virtual, like Ariakit. Without a search input, DOM focus goes to the `r
 Ariakit is the behavior reference, with the changes listed below. These are checked in `e2e/select.spec.ts`:
 
 - A click on the trigger opens the list with the chosen option active, or no active option when nothing is chosen. Enter, Space, and the arrow key toward the list open it too. ArrowDown opens with the chosen option active, or the first one. ArrowUp opens with the chosen option, or the last one. A second click closes.
-- Arrow keys, Home, End, PageUp, and PageDown move the active option. They do not loop, and they skip disabled and hidden options. They never pick. Keys in a long list never scroll the page, and the active option scrolls into view.
+- Arrow keys, Home, End, PageUp, and PageDown move the active option. They do not loop, and they skip disabled and hidden options. They never pick. A disabled option with `accessibleWhenDisabled` is not skipped, like a menu item: the keys and typeahead reach it, but it still picks nothing. It gets `data-accessible-when-disabled`. Keys in a long list never scroll the page, and the active option scrolls into view.
 - Typeahead in the open list moves to the next option that starts with the typed text, with the menu's rules (accents ignored, a repeated letter cycles, disabled options never match, `aria-hidden` text does not count).
 - Typeahead on the closed, focused trigger picks the next matching option at once, like a native `<select>`. `typeahead={false}` turns it off.
 - Enter, Space, and a click pick the option and close the list, and focus goes back to the trigger. In a multi-value select, they toggle the option and keep the list open. A disabled option does nothing.
