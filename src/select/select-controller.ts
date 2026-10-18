@@ -190,14 +190,18 @@ export function createSelect(initial: SelectOptions, defaultValue: SelectValue) 
 	/**
 	 * Write `aria-selected` on every option, and `aria-multiselectable` on the listbox. React does not
 	 * own them, so a value change does not render the options.
+	 *
+	 * Write hidden options too, so this does not use `items()`. While the list is closed, `items()` reads
+	 * the computed style of each option and its parents, and a closed select with many options would
+	 * pay for that on every value change.
 	 */
 	function writeSelected() {
 		const root = listbox();
-		if (root) {
-			if (multiple()) root.setAttribute("aria-multiselectable", "true");
-			else root.removeAttribute("aria-multiselectable");
-		}
-		for (const item of items()) {
+		if (!root) return;
+		if (multiple()) root.setAttribute("aria-multiselectable", "true");
+		else root.removeAttribute("aria-multiselectable");
+		for (const item of root.querySelectorAll<HTMLElement>(OPTION_SELECTOR)) {
+			if (item.closest('[role="listbox"]') !== root) continue;
 			item.setAttribute("aria-selected", isSelected(values.get(item)) ? "true" : "false");
 		}
 	}
