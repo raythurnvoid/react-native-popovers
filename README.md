@@ -488,6 +488,8 @@ Storybook compiles the code with the React Compiler (`.storybook/main.ts`), like
 
 This repo is a t3-chat submodule at `packages/native-popovers`. It is not published to npm: the app uses it as a pnpm workspace package, and CI clones the submodule before `pnpm install --frozen-lockfile`.
 
+Inside t3-chat the root workspace installs this package, so keep no `pnpm-workspace.yaml` here: pnpm 12 would warn on every root command that its settings do not apply. A standalone clone installs with `vp env exec pnpm install --allow-build=esbuild`.
+
 `MyTooltip` renders `TooltipProvider`, `TooltipAnchor`, `Tooltip`, and `TooltipArrow` from this package. `MyPopover` renders `PopoverProvider`, `PopoverDisclosure`, `Popover`, and `PopoverDismiss`. The `My*` components and their call sites kept their JSX. Keep this app setup (`packages/app/src/components/my-tooltip.css`, `app.css`, and `vite.config.ts`):
 
 - No `contain`, `transform`, or `filter` on `.MyTooltipContent`. They turn off `anchor()` for the arrow (see the limit under Styling).
