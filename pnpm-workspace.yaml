@@ -1,0 +1,3 @@
+# Used by a standalone clone. Inside t3-chat the root workspace installs this package.
+allowBuilds:
+  esbuild: true

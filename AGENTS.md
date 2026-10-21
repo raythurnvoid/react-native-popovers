@@ -5,7 +5,7 @@ Read [README.md](README.md) and [.agents/skills/native-popovers/SKILL.md](.agent
 ## Rules
 
 - Use `pnpm`. Run Node through Vite Plus: `vp env exec ...`.
-- Lint with `vp env exec pnpm lint` (TypeScript 6, oxlint, oxfmt check) and format with `vp env exec pnpm format`. Do not add Prettier or ESLint.
+- Lint with `vp env exec pnpm lint` (TypeScript 7, oxlint, oxfmt check) and format with `vp env exec pnpm format`. Do not add Prettier or ESLint.
 - The code must stay safe for the React Compiler. Components render only from the `useSyncExternalStore` snapshot, never from mutable controller state.
 - Do not add `@floating-ui/dom` or any measurement loop. Positioning is CSS Anchor Positioning only.
 - Keep these public names, each module split in regions. Do not add an index barrel; `package.json` exports each module path.

@@ -473,7 +473,7 @@ Unit tests cover the placement map, the typeahead, the list key steps, and the g
 vp env exec pnpm test
 ```
 
-Lint runs TypeScript 6, oxlint (type-aware, with the React Compiler rules), and the oxfmt check, like the t3-chat app. `format` rewrites the files:
+Lint runs TypeScript 7, oxlint (type-aware, with the React Compiler rules, like the t3-chat app), and the oxfmt check. `format` rewrites the files:
 
 ```sh
 vp env exec pnpm lint
