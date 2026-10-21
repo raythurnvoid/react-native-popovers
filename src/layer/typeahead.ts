@@ -40,12 +40,7 @@ export function typeahead_is_key(
  * - Otherwise the search starts at the top of the list.
  * - No match clears the buffer and keeps the active item.
  */
-export function typeahead_next(args: {
-	texts: readonly string[];
-	activeIndex: number;
-	buffer: string;
-	key: string;
-}) {
+export function typeahead_next(args: { texts: readonly string[]; activeIndex: number; buffer: string; key: string }) {
 	const { texts, activeIndex, buffer, key } = args;
 
 	const char = typeahead_normalize(key) || key;

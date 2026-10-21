@@ -588,10 +588,10 @@ export function createMenu(initial: MenuOptions, parent: MenuLevel | null) {
 			const childContent = openChild?.getContent();
 			const area = childContent
 				? menu_grace_area({
-					apex: left.point,
-					itemRect: childButton.getBoundingClientRect(),
-					submenuRect: childContent.getBoundingClientRect(),
-				})
+						apex: left.point,
+						itemRect: childButton.getBoundingClientRect(),
+						submenuRect: childContent.getBoundingClientRect(),
+					})
 				: null;
 			endGrace();
 			if (area) grace = { ...area, timer: setTimeout(endGrace, MENU_GRACE_TIMEOUT) };

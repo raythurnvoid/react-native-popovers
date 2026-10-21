@@ -121,12 +121,7 @@ async function hoverOpen(page: Page, name: string) {
  * The items of a menu that a straight move from `start` to `end` in `steps` steps crosses. A test
  * uses it to prove that its path really crosses another item.
  */
-async function crossedItems(args: {
-	page: Page;
-	start: Point;
-	end: Point;
-	steps: number;
-}) {
+async function crossedItems(args: { page: Page; start: Point; end: Point; steps: number }) {
 	const { page, start, end, steps } = args;
 
 	return page.evaluate(

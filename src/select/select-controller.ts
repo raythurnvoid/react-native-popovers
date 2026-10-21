@@ -445,7 +445,12 @@ export function createSelect(initial: SelectOptions, defaultValue: SelectValue) 
 		}
 		const enabled = enabledItems();
 		const texts = enabled.map((item) => typeahead_normalize(typeahead_text(item)));
-		const next = typeahead_next({ texts, activeIndex: from ? enabled.indexOf(from) : -1, buffer: typeaheadBuffer, key: event.key });
+		const next = typeahead_next({
+			texts,
+			activeIndex: from ? enabled.indexOf(from) : -1,
+			buffer: typeaheadBuffer,
+			key: event.key,
+		});
 		typeaheadBuffer = next.buffer;
 		typeaheadTimer = setTimeout(() => {
 			typeaheadBuffer = "";
@@ -616,7 +621,9 @@ export function createSelect(initial: SelectOptions, defaultValue: SelectValue) 
 			case "PageUp":
 				if (!current) return;
 				autoSelectArmed = false;
-				move(list_page_item({ list: enabled, from: current, step: event.key === "PageDown" ? 1 : -1, container: list }));
+				move(
+					list_page_item({ list: enabled, from: current, step: event.key === "PageDown" ? 1 : -1, container: list }),
+				);
 				break;
 			case "Enter":
 				// Enter never submits a form around the search input, like Ariakit's combobox.

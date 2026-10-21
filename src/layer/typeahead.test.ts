@@ -49,21 +49,36 @@ describe("typeahead_next", () => {
 	});
 
 	test("a letter whose only match is already active finds nothing, so the active item stays", () => {
-		expect(typeahead_next({ texts: baseline, activeIndex: 0, buffer: "", key: "u" })).toEqual({ index: 3, buffer: "u" });
-		expect(typeahead_next({ texts: baseline, activeIndex: 3, buffer: "u", key: "u" })).toEqual({ index: -1, buffer: "" });
+		expect(typeahead_next({ texts: baseline, activeIndex: 0, buffer: "", key: "u" })).toEqual({
+			index: 3,
+			buffer: "u",
+		});
+		expect(typeahead_next({ texts: baseline, activeIndex: 3, buffer: "u", key: "u" })).toEqual({
+			index: -1,
+			buffer: "",
+		});
 	});
 
 	test("no match clears the buffer and keeps the active item", () => {
-		expect(typeahead_next({ texts: baseline, activeIndex: 0, buffer: "", key: "p" })).toEqual({ index: -1, buffer: "" });
+		expect(typeahead_next({ texts: baseline, activeIndex: 0, buffer: "", key: "p" })).toEqual({
+			index: -1,
+			buffer: "",
+		});
 	});
 
 	test("searches from the top when the active item does not start with the letter", () => {
 		// Radix would pick "avocado" here, because it searches after the active item.
-		expect(typeahead_next({ texts: ["apple", "banana", "avocado"], activeIndex: 1, buffer: "", key: "a" })).toEqual({ index: 0, buffer: "a" });
+		expect(typeahead_next({ texts: ["apple", "banana", "avocado"], activeIndex: 1, buffer: "", key: "a" })).toEqual({
+			index: 0,
+			buffer: "a",
+		});
 	});
 
 	test("with no active item, the first match wins", () => {
-		expect(typeahead_next({ texts: baseline, activeIndex: -1, buffer: "", key: "s" })).toEqual({ index: 2, buffer: "s" });
+		expect(typeahead_next({ texts: baseline, activeIndex: -1, buffer: "", key: "s" })).toEqual({
+			index: 2,
+			buffer: "s",
+		});
 	});
 
 	test("more letters narrow the search", () => {
@@ -79,15 +94,27 @@ describe("typeahead_next", () => {
 	});
 
 	test("a repeated letter keeps growing while the active item still matches the whole buffer", () => {
-		expect(typeahead_next({ texts: ["cc one", "c two"], activeIndex: 0, buffer: "c", key: "c" })).toEqual({ index: 0, buffer: "cc" });
+		expect(typeahead_next({ texts: ["cc one", "c two"], activeIndex: 0, buffer: "c", key: "c" })).toEqual({
+			index: 0,
+			buffer: "cc",
+		});
 	});
 
 	test("uppercase and accented keys match normalized text", () => {
-		expect(typeahead_next({ texts: ["apple", "eclair"], activeIndex: -1, buffer: "", key: "E" })).toEqual({ index: 1, buffer: "e" });
-		expect(typeahead_next({ texts: ["apple", "eclair"], activeIndex: -1, buffer: "", key: "é" })).toEqual({ index: 1, buffer: "e" });
+		expect(typeahead_next({ texts: ["apple", "eclair"], activeIndex: -1, buffer: "", key: "E" })).toEqual({
+			index: 1,
+			buffer: "e",
+		});
+		expect(typeahead_next({ texts: ["apple", "eclair"], activeIndex: -1, buffer: "", key: "é" })).toEqual({
+			index: 1,
+			buffer: "e",
+		});
 	});
 
 	test("Space inside a search matches words with spaces", () => {
-		expect(typeahead_next({ texts: baseline, activeIndex: 2, buffer: "show", key: " " })).toEqual({ index: 2, buffer: "show " });
+		expect(typeahead_next({ texts: baseline, activeIndex: 2, buffer: "show", key: " " })).toEqual({
+			index: 2,
+			buffer: "show ",
+		});
 	});
 });

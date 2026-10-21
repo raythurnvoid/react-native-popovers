@@ -41,11 +41,7 @@ export const MENU_GRACE_TIMEOUT = 300;
  * won. Returns null when the submenu is on neither side of the item (it overlaps it), so there is
  * no direction to protect.
  */
-export function menu_grace_area(args: {
-	apex: Point;
-	itemRect: Rect;
-	submenuRect: Rect;
-}) {
+export function menu_grace_area(args: { apex: Point; itemRect: Rect; submenuRect: Rect }) {
 	const { apex, itemRect, submenuRect } = args;
 
 	let side: "left" | "right";

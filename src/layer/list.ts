@@ -14,12 +14,7 @@ export type ListStepKey = "ArrowDown" | "ArrowUp" | "Home" | "End";
  * item's index, or -1 when no item is active. Returns -1 for "no active item" (only with
  * `through-owner`), or `undefined` when the key does not move.
  */
-export function list_step(args: {
-	length: number;
-	index: number;
-	key: ListStepKey;
-	loop: ListLoop;
-}) {
+export function list_step(args: { length: number; index: number; key: ListStepKey; loop: ListLoop }) {
 	const { length, index, key, loop } = args;
 
 	if (length === 0) return undefined;

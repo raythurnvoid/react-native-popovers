@@ -299,7 +299,9 @@ export function createCombobox(initial: ComboboxOptions) {
 		const current = active.get();
 		const index = current ? enabled.indexOf(current) : -1;
 		if (event.key === "PageDown" || event.key === "PageUp") {
-			move(list_page_item({ list: enabled, from: current, step: event.key === "PageDown" ? 1 : -1, container: listbox() }));
+			move(
+				list_page_item({ list: enabled, from: current, step: event.key === "PageDown" ? 1 : -1, container: listbox() }),
+			);
 		} else {
 			const next = list_step({ length: enabled.length, index, key: event.key, loop: "through-owner" });
 			if (next === -1) active.set(null, false);
@@ -394,11 +396,7 @@ export function createCombobox(initial: ComboboxOptions) {
 		/**
 		 * An option click. `setValueOnClick` writes the option value into the text, `hideOnClick` closes.
 		 */
-		pick(args: {
-			value: string | undefined;
-			setValue: boolean;
-			hide: boolean;
-		}) {
+		pick(args: { value: string | undefined; setValue: boolean; hide: boolean }) {
 			const { value, setValue, hide } = args;
 
 			if (setValue && value !== undefined) {

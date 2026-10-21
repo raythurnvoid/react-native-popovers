@@ -222,8 +222,7 @@ export const TooltipAnchor = memo(function TooltipAnchor(props: TooltipAnchorPro
 		props: { ...rest, children },
 		render,
 		internalNames: ANCHOR_EVENT_NAMES,
-		internal: (name, event) =>
-		handleInternal(name as AnchorEventName, event),
+		internal: (name, event) => handleInternal(name as AnchorEventName, event),
 	});
 	if (disabled) {
 		merged["aria-disabled"] = true;

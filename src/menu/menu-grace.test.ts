@@ -27,11 +27,13 @@ describe("menu_grace_area", () => {
 	});
 
 	test("a submenu that overlaps the item has no grace area", () => {
-		expect(menu_grace_area({
-			apex: { x: 100, y: 110 },
-			itemRect: item,
-			submenuRect: { left: 100, right: 300, top: 132, bottom: 400 },
-		})).toBeNull();
+		expect(
+			menu_grace_area({
+				apex: { x: 100, y: 110 },
+				itemRect: item,
+				submenuRect: { left: 100, right: 300, top: 132, bottom: 400 },
+			}),
+		).toBeNull();
 	});
 });
 

@@ -159,7 +159,12 @@ export const HovercardAnchor = memo(function HovercardAnchor(props: HovercardAnc
 		}
 	});
 
-	const merged = merge_render_props({ props: { ...rest, children }, render, internalNames: ANCHOR_EVENT_NAMES, internal: handleEvent });
+	const merged = merge_render_props({
+		props: { ...rest, children },
+		render,
+		internalNames: ANCHOR_EVENT_NAMES,
+		internal: handleEvent,
+	});
 
 	const setRef = useFn((node: HTMLElement) => {
 		element.current = node;
